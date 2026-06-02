@@ -26,11 +26,69 @@ export default function PainelMototaxista() {
   // Use refs to avoid stale closures in realtime subscriptions
   const isOnlineRef = useRef(isOnline);
   const corridaAtivaRef = useRef(corridaAtiva);
+  
+  // Ref para guardar corridas recusadas localmente nesta sessão (evita que voltem antes do Supabase sincronizar)
+  const localRejectedRidesRef = useRef<Set<string>>(new Set());
+  
+  // Ref para a função de recusa, evitando dependências no useEffect e stale closures
+  const recusarCorridaRef = useRef<any>(null);
 
   useEffect(() => {
     isOnlineRef.current = isOnline;
     corridaAtivaRef.current = corridaAtiva;
   }, [isOnline, corridaAtiva]);
+
+  // Efeito de Timeout da Nova Corrida (25 segundos)
+  useEffect(() => {
+    if (novaCorrida && !corridaAtiva && (novaCorrida.status_negociacao === 'nenhuma' || novaCorrida.status_negociacao === 'recusado')) {
+      clearTimeout(window.currentTimeout);
+      const id = novaCorrida.id;
+      window.currentTimeout = setTimeout(() => {
+        if (recusarCorridaRef.current) {
+          recusarCorridaRef.current(id);
+        }
+      }, 25000);
+    }
+    return () => {
+      clearTimeout(window.currentTimeout);
+    };
+  }, [novaCorrida, corridaAtiva]);
+
+  // Efeito de Áudio e Vibração em Loop
+  useEffect(() => {
+    let audio: HTMLAudioElement | null = null;
+    let vibrateInterval: any = null;
+
+    if (novaCorrida && !corridaAtiva) {
+      try {
+        audio = new Audio('/beep.mp3');
+        audio.loop = true;
+        // Isola a promise de play para não travar a renderização do React se falhar
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(e => console.log('Audio autoplay prevented:', e));
+        }
+      } catch (e) {
+        console.log('Audio error:', e);
+      }
+
+      if ('vibrate' in navigator) {
+        vibrateInterval = setInterval(() => {
+          try { navigator.vibrate([200, 100, 200]); } catch (e) {}
+        }, 2000);
+      }
+    }
+
+    return () => {
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+      }
+      if (vibrateInterval) {
+        clearInterval(vibrateInterval);
+      }
+    };
+  }, [novaCorrida, corridaAtiva]);
 
   const checkCorridasPendentes = async () => {
     // Apenas puxar corridas aguardando das últimas 12 horas
@@ -46,6 +104,7 @@ export default function PainelMototaxista() {
     if (data && data.length > 0) {
       // Filtrar no client se ele já rejeitou (o array no PG pode ser null)
       const corridaValida = data.find(c => {
+        if (localRejectedRidesRef.current.has(c.id)) return false;
         const hasRejected = c.rejected_by && c.rejected_by.includes(driver?.id);
         const isReservedToAnother = c.motorista_id && c.motorista_id !== driver?.id && c.status_negociacao === 'sugerido';
         return !hasRejected && !isReservedToAnother;
@@ -55,15 +114,6 @@ export default function PainelMototaxista() {
         setNovaCorrida(corridaValida);
         setValorProposto("");
         setIsNegociando(false);
-        
-        // Timeout de 20s para ignorar (apenas se for normal ou se a especial nao tiver sido respondida)
-        if (!window.currentTimeout) {
-          window.currentTimeout = setTimeout(() => {
-            if (corridaValida.status_negociacao === 'nenhuma') {
-              recusarCorrida(corridaValida.id);
-            }
-          }, 20000);
-        }
       } else {
         setNovaCorrida(null);
         clearTimeout(window.currentTimeout);
@@ -100,24 +150,13 @@ export default function PainelMototaxista() {
         { event: 'INSERT', schema: 'public', table: 'rides' },
         (payload) => {
           if (payload.new.status === 'aguardando' && isOnlineRef.current && !corridaAtivaRef.current) {
+            // Se eu já recusei esta corrida nesta sessão localmente, ignora o evento
+            if (localRejectedRidesRef.current.has(payload.new.id)) return;
+            
             // Verificar se foi eu que rejeitei (provavelmente não pois é insert, mas por garantia)
             setNovaCorrida(payload.new);
             setValorProposto("");
             setIsNegociando(false);
-            
-            // Start timeout on insert
-            clearTimeout(window.currentTimeout);
-            window.currentTimeout = setTimeout(() => {
-              if (payload.new.status_negociacao === 'nenhuma') {
-                recusarCorrida(payload.new.id);
-              }
-            }, 20000);
-            
-            // Tocar som (Browser Audio API)
-            try {
-              const audio = new Audio('/notification.mp3');
-              audio.play().catch(e => console.log('Audio autoplay prevented'));
-            } catch (e) {}
           }
         }
       )
@@ -239,17 +278,32 @@ export default function PainelMototaxista() {
 
   const recusarCorrida = async (corridaId: string) => {
     clearTimeout(window.currentTimeout);
-    // Adicionar motorista ao array de rejeitados
-    const currentRejected = novaCorrida.rejected_by || [];
-    await supabase
-      .from("rides")
-      .update({ rejected_by: [...currentRejected, driver.id] })
-      .eq("id", corridaId);
-      
+    
+    // Bloquear a corrida localmente IMEDIATAMENTE para evitar que ela volte em caso de atraso da rede
+    localRejectedRidesRef.current.add(corridaId);
+    
+    // Backup do array atual antes de limpar o estado
+    const currentRejected = novaCorrida?.rejected_by || [];
+    
+    // Otimista: limpar da tela IMEDIATAMENTE
     setNovaCorrida(null);
     setIsNegociando(false);
-    checkCorridasPendentes(); // Buscar a próxima
+    
+    try {
+      await supabase
+        .from("rides")
+        .update({ rejected_by: [...currentRejected, driver.id] })
+        .eq("id", corridaId);
+    } catch (e) {
+      console.error("Erro ao recusar corrida:", e);
+    }
+      
+    checkCorridasPendentes(); // Buscar a próxima (já vai ignorar pela ref)
   };
+
+  useEffect(() => {
+    recusarCorridaRef.current = recusarCorrida;
+  });
 
   const aceitarCorrida = async (corridaId: string) => {
     clearTimeout(window.currentTimeout);
@@ -470,17 +524,30 @@ export default function PainelMototaxista() {
 
         {/* Modal de Nova Corrida */}
         {novaCorrida && !corridaAtiva && (
-          <div className="absolute inset-x-0 bottom-0 top-16 bg-white rounded-t-3xl p-6 flex flex-col z-30 shadow-2xl overflow-y-auto pb-24">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="font-bold text-xl text-dark">Nova corrida</h2>
-              {novaCorrida.tipo_corrida === 'especial' && (
-                <div className="bg-purple-100 text-purple-700 text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1">
-                  ⚠️ CORRIDA ESPECIAL
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-flash-bg">
+            <div className="bg-white w-full h-auto max-h-[90vh] max-w-md rounded-3xl p-6 flex flex-col animate-shake-violent animate-neon-pulse overflow-y-auto mx-auto my-auto shadow-2xl">
+              <div className="text-center mb-6 mt-2">
+                <div className="flex flex-col items-center justify-center gap-4">
+                  <div className="w-20 h-20 bg-yellow-400 rounded-full flex items-center justify-center animate-ping shadow-[0_0_30px_rgba(255,204,0,1)] mx-auto">
+                    <span className="text-4xl">🔔</span>
+                  </div>
+                  <div className="bg-red-600 text-white px-4 py-3 rounded-2xl font-black text-xl animate-bounce shadow-[0_0_30px_rgba(220,38,38,0.8)] w-full text-center uppercase tracking-wider mx-auto">
+                    Nova Corrida!
+                  </div>
+                  
+                  <p className="text-sm font-bold text-gray-600 mt-2 px-2 text-center">
+                    ⏳ Você tem 25 segundos para aceitar esta corrida. Após esse prazo, ela será encaminhada automaticamente ao mototaxista mais próximo.
+                  </p>
+
+                  {novaCorrida.tipo_corrida === 'especial' && (
+                    <div className="bg-purple-600 text-white text-md font-black px-6 py-2 rounded-full flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(147,51,234,0.6)] w-full mx-auto mt-2">
+                      ⚠️ CORRIDA ESPECIAL
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </div>
             
-            <div className="space-y-5 mb-auto">
+              <div className="space-y-4 mb-auto">
               <div className="flex gap-4 items-start">
                 <div className="w-4 h-4 rounded-full bg-green-500 mt-1 shadow-sm"></div>
                 <div>
@@ -536,35 +603,32 @@ export default function PainelMototaxista() {
                   </div>
                   <button 
                     onClick={() => aceitarCorrida(novaCorrida.id)}
-                    className="py-3 px-4 bg-primary text-dark font-bold rounded-lg shadow-md flex items-center justify-center gap-2 whitespace-nowrap active:scale-95 transition-transform"
+                    className="py-4 px-6 bg-primary text-dark font-black text-xl rounded-xl shadow-[0_0_30px_rgba(255,204,0,0.8)] flex items-center justify-center gap-2 whitespace-nowrap active:scale-95 transition-transform animate-pulse-fast"
                   >
-                    <CheckCircle2 size={18} /> ENVIAR
+                    <CheckCircle2 size={24} /> ENVIAR
                   </button>
                 </div>
               )}
             </div>
 
-            <div className="flex gap-4 mt-auto">
-              {novaCorrida.status_negociacao !== 'sugerido' && (
-                <>
-                  <button 
-                    onClick={() => recusarCorrida(novaCorrida.id)}
-                    className="flex-1 py-4 bg-red-50 text-red-600 font-bold rounded-xl flex items-center justify-center gap-2"
-                  >
-                    <XCircle size={20} /> RECUSAR
-                  </button>
-                  {novaCorrida.tipo_corrida !== 'especial' && (
-                    <button 
-                      onClick={() => aceitarCorrida(novaCorrida.id)}
-                      className="flex-1 py-4 bg-primary text-dark font-bold rounded-xl shadow-lg shadow-yellow-200 flex items-center justify-center gap-2 text-sm"
-                    >
-                      <CheckCircle2 size={20} /> ACEITAR
-                    </button>
-                  )}
-                </>
+            <div className="flex flex-col gap-4 mt-auto pt-4">
+              {novaCorrida.status_negociacao !== 'sugerido' && novaCorrida.tipo_corrida !== 'especial' && (
+                <button 
+                  onClick={() => aceitarCorrida(novaCorrida.id)}
+                  className="w-full py-8 bg-primary text-dark font-black text-3xl rounded-2xl shadow-[0_0_40px_rgba(255,204,0,0.8)] flex items-center justify-center gap-3 animate-pulse-fast active:scale-95 transition-transform"
+                >
+                  <CheckCircle2 size={32} /> ACEITAR
+                </button>
               )}
+              <button 
+                onClick={() => recusarCorrida(novaCorrida.id)}
+                className="w-full py-5 bg-red-100 text-red-600 font-bold text-xl rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-transform"
+              >
+                <XCircle size={24} /> RECUSAR
+              </button>
             </div>
           </div>
+        </div>
         )}
 
         {/* Corrida Ativa */}

@@ -2,6 +2,48 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .animate-pulse-fast {
+    animation: pulse-fast 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  @keyframes pulse-fast {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: .8;
+    }
+  }
+
+  .animate-flash-bg {
+    animation: flash-bg 0.8s infinite alternate;
+  }
+  .animate-shake-violent {
+    animation: shake-violent 0.4s infinite;
+  }
+  .animate-neon-pulse {
+    animation: neon-pulse 1s infinite alternate;
+  }
+  
+  @keyframes flash-bg {
+    0% { background-color: rgba(0, 0, 0, 0.95); }
+    100% { background-color: rgba(30, 0, 0, 0.85); }
+  }
+  
+  @keyframes shake-violent {
+    0%, 100% { transform: translateX(0) translateY(0) rotate(0deg); }
+    25% { transform: translateX(-2px) translateY(2px) rotate(-1deg); }
+    50% { transform: translateX(2px) translateY(-2px) rotate(1deg); }
+    75% { transform: translateX(-2px) translateY(-2px) rotate(1deg); }
+  }
+  
+  @keyframes neon-pulse {
+    0% { box-shadow: 0 0 20px rgba(255, 204, 0, 0.4), 0 0 40px rgba(255, 204, 0, 0.2); }
+    100% { box-shadow: 0 0 40px rgba(255, 204, 0, 0.8), 0 0 80px rgba(255, 204, 0, 0.6), 0 0 120px rgba(255, 204, 0, 0.4); }
+  }
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;

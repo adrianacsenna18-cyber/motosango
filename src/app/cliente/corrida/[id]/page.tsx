@@ -34,8 +34,9 @@ export default function StatusCorrida({ params }: { params: { id: string } }) {
         async (payload) => {
           const updatedRide = payload.new;
           
-          // If a driver accepted, fetch the driver's info
-          if (updatedRide.motorista_id && updatedRide.status === 'aceito') {
+          // Se já tem motorista vinculado, sempre busca os dados do motorista
+          // Isso garante que a chave PIX e nome apareçam independentemente do status (aceito, a_caminho, etc)
+          if (updatedRide.motorista_id) {
             const { data: driverData } = await supabase
               .from('drivers')
               .select('*')
