@@ -38,40 +38,46 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="flex flex-col fixed inset-0 z-50 bg-gray-100 p-6 items-center justify-center w-full h-full">
-      <div className="w-full max-w-sm bg-white p-8 rounded-2xl shadow-md border border-gray-200">
-        <div className="flex items-center gap-2 justify-center mb-8">
-          <span className="text-3xl">⚙️</span>
-          <h1 className="text-2xl font-bold text-dark">MotoSango Admin</h1>
+    <div className="flex flex-col fixed inset-0 z-50 bg-black p-6 items-center justify-center w-full h-full">
+      <div className="w-full max-w-sm bg-[#111111] p-8 rounded-[2rem] shadow-2xl border border-[#222222]">
+        <div className="flex flex-col items-center justify-center mb-8 relative z-20">
+          <div className="w-24 h-24 mb-4 flex items-center justify-center">
+            <img src="/logo.png" alt="MotoSango Logo" className="w-full h-full object-contain drop-shadow-lg" />
+          </div>
+          <h1 className="text-2xl font-black text-white italic tracking-tight text-center">
+            Moto<span className="text-primary">Sango</span> <span className="text-xs uppercase tracking-widest text-gray-400 not-italic ml-1">Admin</span>
+          </h1>
         </div>
 
-        <form onSubmit={handleLogin} className="flex flex-col gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Login</label>
+        <form onSubmit={handleLogin} className="flex flex-col gap-5">
+          <div className="text-center">
+            <label className="block text-xs font-medium text-gray-500 mb-2 uppercase tracking-widest">Login Administrativo</label>
             <input 
               type="text" 
               required
               value={login}
               onChange={(e) => setLogin(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-300 rounded-lg p-3 outline-none focus:border-primary"
+              className="w-full bg-[#1A1A1A] text-white text-center border border-[#333333] rounded-2xl p-4 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors text-sm placeholder-gray-600"
+              placeholder="Digite o usuário"
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Senha</label>
+          <div className="text-center">
+            <label className="block text-xs font-medium text-gray-500 mb-2 uppercase tracking-widest">Senha de Acesso</label>
             <input 
               type="password" 
               required
               value={senha}
               onChange={(e) => setSenha(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-300 rounded-lg p-3 outline-none focus:border-primary"
+              className="w-full bg-[#1A1A1A] text-white text-center border border-[#333333] rounded-2xl p-4 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors text-sm placeholder-gray-600"
+              placeholder="••••••••"
             />
           </div>
 
           <button 
             type="submit" 
             disabled={loading}
-            className="mt-4 w-full py-3 bg-dark text-white font-bold text-center rounded-lg shadow-sm hover:bg-gray-800 disabled:opacity-50"
+            className="mt-6 w-full py-4 bg-primary text-black font-black text-center rounded-full text-sm uppercase tracking-wider shadow-[0_10px_20px_rgba(255,208,0,0.15)] hover:scale-[1.02] transition-all disabled:opacity-50 disabled:hover:scale-100"
           >
             {loading ? "Acessando..." : "Entrar no Painel"}
           </button>

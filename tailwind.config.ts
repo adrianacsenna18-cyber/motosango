@@ -9,8 +9,8 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        primary: "#FBBF24", // Amarelo característico (MotoSango)
-        dark: "#1F2937", // Cinza escuro/preto
+        primary: "#FFD000", // Amarelo oficial MotoSango
+        dark: "#000000", // Preto absoluto oficial
       },
     },
   },

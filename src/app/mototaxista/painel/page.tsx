@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { MotoBottomNav } from "@/components/layout/MotoBottomNav";
-import { Navigation, CheckCircle2, XCircle } from "lucide-react";
+import { Navigation, CheckCircle2, XCircle, Copy } from "lucide-react";
 
 declare global {
   interface Window {
@@ -428,63 +428,63 @@ export default function PainelMototaxista() {
 
       {/* Modal Mensalidade */}
       {showMensalidade && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-white w-full h-full max-w-md max-h-[800px] rounded-2xl flex flex-col overflow-hidden shadow-2xl relative mx-auto my-auto">
-            <div className="bg-dark text-white p-4 flex items-center justify-between">
-              <h1 className="font-bold text-lg">Minha Mensalidade</h1>
-              <button onClick={() => setShowMensalidade(false)} className="w-8 h-8 flex items-center justify-center bg-gray-800 rounded-full hover:bg-gray-700 transition-colors">
-                ✕
-              </button>
-            </div>
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
+          <div className="bg-[#111111] rounded-[2.5rem] p-8 shadow-2xl text-center border border-[#222222] w-full max-w-sm flex flex-col justify-center relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-primary/20"></div>
             
-            <div className="p-6 flex-1 flex flex-col overflow-y-auto">
-              <div className="text-center mb-6 mt-4">
-                <p className="text-sm text-gray-500 font-medium mb-1">Valor da Mensalidade</p>
-                <h2 className="text-4xl font-bold text-dark">R$ {configMensalidade.valor}</h2>
-                <p className="text-sm font-bold mt-2">
-                  Vencimento: {driver.vencimento_mensalidade ? new Date(driver.vencimento_mensalidade).toLocaleDateString() : 'Não definido'}
-                </p>
-              </div>
+            <button onClick={() => setShowMensalidade(false)} className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center bg-[#1A1A1A] text-gray-400 rounded-full hover:bg-[#333] transition-colors border border-[#333]">
+              ✕
+            </button>
 
-              <div className="bg-gray-50 p-4 rounded-xl mb-6 border border-gray-200">
-                <p className="text-sm text-gray-500 font-medium mb-2">Status do Plano</p>
-                <div className={`py-3 rounded-lg text-center font-bold text-lg ${
-                  driver.bloqueado_mensalidade || driver.status_plano === 'vencido' 
-                    ? 'bg-red-100 text-red-600' 
-                    : driver.pagamento_em_analise 
-                      ? 'bg-yellow-100 text-yellow-700' 
-                      : 'bg-green-100 text-green-700'
-                }`}>
-                  {driver.bloqueado_mensalidade || driver.status_plano === 'vencido' 
-                    ? 'VENCIDO' 
-                    : driver.pagamento_em_analise 
-                      ? 'EM ANÁLISE' 
-                      : 'PAGO / ATIVO'}
-                </div>
-              </div>
+            <h2 className="text-[3.5rem] font-black text-primary mb-4 tracking-tighter drop-shadow-md mt-4">R$ {configMensalidade.valor}</h2>
+            
+            <p className="text-gray-400 mb-8 uppercase tracking-widest text-xs font-medium">
+              Vencimento: <br/> <span className="font-bold text-white text-sm mt-1 inline-block bg-[#1A1A1A] px-3 py-1 rounded-md border border-[#333333]">
+                {driver.vencimento_mensalidade ? new Date(driver.vencimento_mensalidade).toLocaleDateString() : 'Não definido'}
+              </span>
+            </p>
 
-              {configMensalidade.pix && (
-                <div className="bg-gray-50 p-4 rounded-xl mb-auto text-center border border-gray-200">
-                  <p className="text-sm text-gray-500 mb-2">PIX do Administrador</p>
-                  <p className="font-bold text-lg text-dark mb-4">{configMensalidade.pix}</p>
-                  <button 
-                    onClick={() => {
-                      navigator.clipboard.writeText(configMensalidade.pix);
-                      alert("PIX copiado!");
-                    }} 
-                    className="w-full py-3 bg-gray-200 text-dark font-bold rounded-lg flex items-center justify-center gap-2 hover:bg-gray-300 transition-colors"
-                  >
-                    COPIAR PIX DO ADMINISTRADOR
-                  </button>
-                </div>
-              )}
+            <div className="mb-10 bg-[#0A0A0A] py-4 rounded-3xl border border-[#1A1A1A]">
+              <p className="text-[10px] text-gray-500 mb-2 uppercase tracking-widest font-bold">Status do Plano</p>
+              <span className={`inline-block px-5 py-2 rounded-full font-bold text-xs tracking-wider border ${
+                driver.bloqueado_mensalidade || driver.status_plano === 'vencido' 
+                  ? 'bg-red-900/30 text-red-400 border-red-800/50' 
+                  : driver.pagamento_em_analise 
+                    ? 'bg-yellow-900/30 text-yellow-400 border-yellow-800/50' 
+                    : 'bg-green-900/30 text-green-400 border-green-800/50'
+              }`}>
+                {driver.bloqueado_mensalidade || driver.status_plano === 'vencido' 
+                  ? 'VENCIDO' 
+                  : driver.pagamento_em_analise 
+                    ? 'EM ANÁLISE' 
+                    : 'PAGO / ATIVO'}
+              </span>
+            </div>
 
+            <div className="mt-auto">
+              <p className="text-[10px] text-gray-500 mb-1 uppercase tracking-widest font-bold">PIX do Administrador</p>
+              <p className="font-medium text-base text-gray-300 mb-6 bg-[#1A1A1A] py-3 px-4 rounded-xl border border-[#222222] break-all">{configMensalidade.pix}</p>
+              
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(configMensalidade.pix);
+                  alert("PIX copiado!");
+                }}
+                className="w-full py-4 bg-primary text-black font-black rounded-full flex items-center justify-center gap-2 mb-4 shadow-[0_10px_20px_rgba(255,208,0,0.15)] hover:scale-[1.02] transition-all active:scale-[0.98] uppercase tracking-wide text-sm"
+              >
+                <Copy size={18} /> COPIAR PIX DO ADMIN
+              </button>
+              
               <button 
                 onClick={informarPagamentoMensalidade}
                 disabled={driver.pagamento_em_analise}
-                className="w-full py-4 mt-6 bg-primary text-dark font-bold text-center rounded-xl text-lg flex items-center justify-center gap-2 shadow-lg shadow-yellow-200 disabled:opacity-50 hover:bg-yellow-400 transition-colors"
+                className={`w-full py-4 font-bold rounded-full transition-all uppercase tracking-wide text-xs border ${
+                  driver.pagamento_em_analise 
+                    ? 'bg-yellow-600/50 text-white opacity-50 cursor-not-allowed border-transparent' 
+                    : 'bg-[#1A1A1A] border-[#333333] text-white hover:text-primary hover:border-primary/50'
+                }`}
               >
-                <CheckCircle2 size={24} /> {driver.pagamento_em_analise ? 'JÁ AVISADO' : 'JÁ PAGUEI'}
+                {driver.pagamento_em_analise ? 'JÁ AVISADO' : 'JÁ PAGUEI MENSALIDADE'}
               </button>
             </div>
           </div>
