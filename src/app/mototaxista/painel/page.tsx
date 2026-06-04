@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { MotoBottomNav } from "@/components/layout/MotoBottomNav";
-import { Navigation, CheckCircle2, XCircle, Copy } from "lucide-react";
+import { Navigation, CheckCircle2, XCircle, Copy, Bell } from "lucide-react";
 
 declare global {
   interface Window {
@@ -22,6 +22,7 @@ export default function PainelMototaxista() {
   const [isNegociando, setIsNegociando] = useState(false);
   const [showMensalidade, setShowMensalidade] = useState(false);
   const [configMensalidade, setConfigMensalidade] = useState<any>({ valor: 50.00, pix: '' });
+  const [pushStatus, setPushStatus] = useState<string>(''); // '' | 'saving' | 'saved' | 'error'
   
   // Use refs to avoid stale closures in realtime subscriptions
   const isOnlineRef = useRef(isOnline);
@@ -382,6 +383,66 @@ export default function PainelMototaxista() {
     }
   };
 
+  const urlBase64ToUint8Array = (base64String: string) => {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  };
+
+  const ativarNotificacoesPush = async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      alert("Seu navegador não suporta notificações em segundo plano.");
+      return;
+    }
+
+    try {
+      setPushStatus('saving');
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        setPushStatus('');
+        alert("Você precisa permitir as notificações para receber alertas com a tela apagada.");
+        return;
+      }
+
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      
+      const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      if (!vapidPublicKey) {
+        console.error("VAPID Key ausente");
+        setPushStatus('error');
+        return;
+      }
+
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
+      });
+
+      const response = await fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          driver_id: driver.id,
+          subscription
+        })
+      });
+
+      if (response.ok) {
+        setPushStatus('saved');
+      } else {
+        setPushStatus('error');
+      }
+    } catch (error) {
+      console.error("Erro ao ativar push:", error);
+      setPushStatus('error');
+    }
+  };
+
   const informarPagamentoMensalidade = async () => {
     await supabase.from("drivers").update({ pagamento_em_analise: true }).eq("id", driver.id);
     const updatedDriver = { ...driver, pagamento_em_analise: true };
@@ -415,6 +476,16 @@ export default function PainelMototaxista() {
         </div>
         
         <div className="flex items-center gap-2 bg-gray-800 px-3 py-1.5 rounded-full border border-gray-700">
+          {pushStatus !== 'saved' && (
+            <button
+              onClick={ativarNotificacoesPush}
+              disabled={pushStatus === 'saving'}
+              className="mr-2 text-gray-400 hover:text-white transition-colors"
+              title="Ativar alertas com tela apagada"
+            >
+              <Bell size={16} className={pushStatus === 'saving' ? 'animate-pulse' : ''} />
+            </button>
+          )}
           <div className={`w-3 h-3 rounded-full ${isOnline ? 'bg-green-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]' : 'bg-gray-500'}`}></div>
           <span className="text-sm font-bold text-white">{isOnline ? 'Online' : 'Offline'}</span>
           <button 
