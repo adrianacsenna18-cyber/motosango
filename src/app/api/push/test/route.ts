@@ -8,9 +8,8 @@ export async function GET(request: Request) {
     const vapidPublicRaw = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
     const vapidPrivateRaw = process.env.VAPID_PRIVATE_KEY;
 
-    // Limpeza brutal para remover aspas, espaços e lixo da Vercel
-    const vapidPublic = vapidPublicRaw?.replace(/[^a-zA-Z0-9\-_]/g, '');
-    const vapidPrivate = vapidPrivateRaw?.replace(/[^a-zA-Z0-9\-_]/g, '');
+    const vapidPublic = vapidPublicRaw?.trim();
+    const vapidPrivate = vapidPrivateRaw?.trim();
 
     if (!vapidPublic || !vapidPrivate) {
       return NextResponse.json({ error: 'Chaves VAPID não configuradas no servidor' }, { status: 500 });
