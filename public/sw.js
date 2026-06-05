@@ -6,6 +6,10 @@ self.addEventListener('push', function(event) {
       icon: '/icon-192x192.png',
       badge: '/icon-192x192.png',
       vibrate: [200, 100, 200, 100, 200, 100, 200],
+      requireInteraction: true,
+      renotify: true,
+      silent: false,
+      tag: 'nova-corrida',
       data: {
         url: data.url || '/mototaxista/painel'
       }
