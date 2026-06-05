@@ -428,7 +428,15 @@ export default function PainelMototaxista() {
         return;
       }
 
-      alert("6 - Antes do pushManager.subscribe");
+      alert("6 - Verificando inscrição antiga...");
+      const existingSubscription = await registration.pushManager.getSubscription();
+      
+      if (existingSubscription) {
+        alert("Cancelando inscrição da chave antiga...");
+        await existingSubscription.unsubscribe();
+      }
+
+      alert("6.1 - Criando inscrição com a NOVA chave...");
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
