@@ -5,8 +5,8 @@ import webpush from 'web-push';
 export async function GET(request: Request) {
   try {
     // 1. Configurar o Web Push com as chaves VAPID
-    const vapidPublic = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-    const vapidPrivate = process.env.VAPID_PRIVATE_KEY;
+    const vapidPublic = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim();
+    const vapidPrivate = process.env.VAPID_PRIVATE_KEY?.trim();
 
     if (!vapidPublic || !vapidPrivate) {
       return NextResponse.json({ error: 'Chaves VAPID não configuradas no servidor' }, { status: 500 });
