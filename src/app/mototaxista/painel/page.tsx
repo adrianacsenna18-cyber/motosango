@@ -395,6 +395,7 @@ export default function PainelMototaxista() {
   };
 
   const ativarNotificacoesPush = async () => {
+    alert("1 - Clique no sino iniciou");
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
       alert("Seu navegador não suporta notificações em segundo plano.");
       return;
@@ -403,6 +404,8 @@ export default function PainelMototaxista() {
     try {
       setPushStatus('saving');
       const permission = await Notification.requestPermission();
+      alert("2 - Permissão: " + permission);
+      
       if (permission !== 'granted') {
         setPushStatus('');
         alert("Você precisa permitir as notificações para receber alertas com a tela apagada.");
@@ -410,19 +413,28 @@ export default function PainelMototaxista() {
       }
 
       const registration = await navigator.serviceWorker.register('/sw.js');
+      alert("3 - Service Worker registrado");
+      
+      await navigator.serviceWorker.ready;
+      alert("4 - Service Worker ready");
       
       const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      alert("5 - VAPID existe: " + (vapidPublicKey ? "sim" : "não"));
+      
       if (!vapidPublicKey) {
         console.error("VAPID Key ausente");
         setPushStatus('error');
         return;
       }
 
+      alert("6 - Antes do pushManager.subscribe");
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
       });
+      alert("7 - PushSubscription criada");
 
+      alert("8 - Antes do fetch");
       const response = await fetch('/api/push/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -432,12 +444,16 @@ export default function PainelMototaxista() {
         })
       });
 
+      alert("9 - Status API: " + response.status);
+
       if (response.ok) {
         setPushStatus('saved');
+        alert("10 - Salvo com sucesso");
       } else {
         setPushStatus('error');
       }
-    } catch (error) {
+    } catch (error: any) {
+      alert("ERRO: " + (error.message || error));
       console.error("Erro ao ativar push:", error);
       setPushStatus('error');
     }
