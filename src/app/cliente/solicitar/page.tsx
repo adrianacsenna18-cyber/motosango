@@ -104,6 +104,14 @@ export default function SolicitarCorrida() {
     }
   };
 
+  const formatAddressForDisplay = (address: string) => {
+    if (!address) return '';
+    if (address.startsWith('Lat:')) {
+      return '📍 Localização atual';
+    }
+    return address;
+  };
+
   const handleSolicitar = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -178,8 +186,15 @@ export default function SolicitarCorrida() {
               <input 
                 type="text" 
                 required
-                value={origem}
-                onChange={(e) => setOrigem(e.target.value)}
+                value={formatAddressForDisplay(origem)}
+                onChange={(e) => {
+                  // Se o usuário tentar editar manualmente a localização atual, limpamos para ele digitar
+                  if (origem.startsWith('Lat:')) {
+                    setOrigem(e.target.value.replace('📍 Localização atual', ''));
+                  } else {
+                    setOrigem(e.target.value);
+                  }
+                }}
                 className="w-full bg-[#F9FAFB] border border-gray-200 rounded-2xl p-4 pl-12 outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all font-medium text-black text-sm placeholder-gray-400"
                 placeholder="Local de embarque"
               />

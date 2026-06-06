@@ -105,6 +105,14 @@ export default function PainelMototaxista() {
     };
   }, [novaCorrida, corridaAtiva]);
 
+  const formatAddressForDisplay = (address: string | undefined | null) => {
+    if (!address) return '';
+    if (address.startsWith('Lat:')) {
+      return '📍 Localização compartilhada pelo cliente';
+    }
+    return address;
+  };
+
   const checkCorridasPendentes = async () => {
     // Apenas puxar corridas aguardando das últimas 12 horas
     const hoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
@@ -720,14 +728,14 @@ export default function PainelMototaxista() {
                 <div className="w-4 h-4 rounded-full bg-green-500 mt-1 shadow-sm"></div>
                 <div>
                   <p className="text-xs text-gray-500 font-medium">Origem</p>
-                  <p className="font-bold text-dark text-lg">{novaCorrida.origem}</p>
+                  <p className="font-bold text-dark text-lg">{formatAddressForDisplay(novaCorrida.origem)}</p>
                 </div>
               </div>
               <div className="flex gap-4 items-start">
                 <div className="w-4 h-4 rounded-full bg-red-500 mt-1 shadow-sm"></div>
                 <div>
                   <p className="text-xs text-gray-500 font-medium">Destino</p>
-                  <p className="font-bold text-dark text-lg">{novaCorrida.destino}</p>
+                  <p className="font-bold text-dark text-lg">{formatAddressForDisplay(novaCorrida.destino)}</p>
                 </div>
               </div>
             </div>
@@ -830,14 +838,14 @@ export default function PainelMototaxista() {
                 <div className="w-3 h-3 rounded-full bg-green-500 mt-1.5"></div>
                 <div>
                   <p className="text-xs text-gray-500 font-medium">Origem</p>
-                  <p className="font-bold text-dark">{corridaAtiva.origem}</p>
+                  <p className="font-bold text-dark">{formatAddressForDisplay(corridaAtiva.origem)}</p>
                 </div>
               </div>
               <div className="flex gap-4 items-start">
                 <div className="w-3 h-3 rounded-full bg-red-500 mt-1.5"></div>
                 <div>
                   <p className="text-xs text-gray-500 font-medium">Destino</p>
-                  <p className="font-bold text-dark">{corridaAtiva.destino}</p>
+                  <p className="font-bold text-dark">{formatAddressForDisplay(corridaAtiva.destino)}</p>
                 </div>
               </div>
             </div>
