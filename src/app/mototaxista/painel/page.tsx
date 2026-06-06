@@ -580,25 +580,30 @@ export default function PainelMototaxista() {
           </div>
         </div>
         
-        <div className="flex items-center gap-2 bg-gray-800 px-3 py-1.5 rounded-full border border-gray-700">
-          {pushStatus !== 'saved' && (
-            <button
-              onClick={ativarNotificacoesPush}
-              disabled={pushStatus === 'saving'}
-              className="mr-2 text-gray-400 hover:text-white transition-colors"
-              title="Ativar alertas com tela apagada"
+        <div className="flex flex-col items-end gap-1">
+          <div className="flex items-center gap-2 bg-gray-800 px-3 py-1.5 rounded-full border border-gray-700">
+            {pushStatus !== 'saved' && (
+              <button
+                onClick={ativarNotificacoesPush}
+                disabled={pushStatus === 'saving'}
+                className="mr-2 text-gray-400 hover:text-white transition-colors"
+                title="Ativar alertas com tela apagada"
+              >
+                <Bell size={16} className={pushStatus === 'saving' ? 'animate-pulse' : ''} />
+              </button>
+            )}
+            <div className={`w-3 h-3 rounded-full ${isOnline ? 'bg-green-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]' : 'bg-gray-500'}`}></div>
+            <span className="text-sm font-bold text-white">{isOnline ? 'Online' : 'Offline'}</span>
+            <button 
+              onClick={toggleOnline}
+              className={`ml-2 w-12 h-6 rounded-full relative transition-colors ${isOnline ? 'bg-green-500' : 'bg-gray-600'}`}
             >
-              <Bell size={16} className={pushStatus === 'saving' ? 'animate-pulse' : ''} />
+              <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${isOnline ? 'translate-x-6' : ''}`}></div>
             </button>
+          </div>
+          {!isOnline && (
+            <span className="text-[10px] text-gray-400 mr-2">Toque em ONLINE para receber corridas</span>
           )}
-          <div className={`w-3 h-3 rounded-full ${isOnline ? 'bg-green-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]' : 'bg-gray-500'}`}></div>
-          <span className="text-sm font-bold text-white">{isOnline ? 'Online' : 'Offline'}</span>
-          <button 
-            onClick={toggleOnline}
-            className={`ml-2 w-12 h-6 rounded-full relative transition-colors ${isOnline ? 'bg-green-500' : 'bg-gray-600'}`}
-          >
-            <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${isOnline ? 'translate-x-6' : ''}`}></div>
-          </button>
         </div>
       </header>
 

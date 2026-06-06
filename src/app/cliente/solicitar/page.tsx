@@ -180,6 +180,8 @@ export default function SolicitarCorrida() {
           </h2>
           
           <form onSubmit={handleSolicitar} className="flex flex-col gap-4">
+            <label htmlFor="origem" className="block text-sm font-bold text-gray-700 mb-0 ml-1">Onde você está?</label>
+            <p className="text-xs text-gray-500 mb-2 ml-1">📍 Permita sua localização para encontrarmos o mototaxista mais próximo de você.</p>
             <div className="relative">
               <div className="absolute top-1/2 -translate-y-1/2 left-5 w-3 h-3 rounded-full bg-green-500 shadow-sm z-10"></div>
               <div className="absolute top-10 left-[1.3rem] w-0.5 h-6 bg-gray-200 z-0"></div>
