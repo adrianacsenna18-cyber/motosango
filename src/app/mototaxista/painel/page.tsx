@@ -285,26 +285,28 @@ export default function PainelMototaxista() {
     const newState = !isOnline;
     setIsOnline(newState);
 
-    // Tentar desbloquear áudio no clique do usuário (Ghost Audio para iOS)
+    // Tocar bip audível no clique para desbloquear áudio no iOS
     if (newState && audioRef.current) {
       try {
-        const oldVolume = audioRef.current.volume;
-        audioRef.current.volume = 0.01; // Volume quase mudo
+        audioRef.current.volume = 0.5; // Volume moderado
         const unlockPromise = audioRef.current.play();
         if (unlockPromise !== undefined) {
           unlockPromise.then(() => {
-            if (audioRef.current) {
-              audioRef.current.pause();
-              audioRef.current.currentTime = 0;
-              audioRef.current.volume = oldVolume;
-              console.log("[AUDIO] Áudio preparado/desbloqueado no clique de ONLINE");
-            }
+            console.log("[AUDIO] Bip de confirmação Online tocando");
+            // Deixa tocar por 500ms e depois pausa
+            setTimeout(() => {
+              if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current.currentTime = 0;
+                audioRef.current.volume = 1.0; // Restaura volume para quando a corrida chegar
+              }
+            }, 500);
           }).catch((err) => {
-            console.log("[AUDIO] Falha ao preparar áudio (Autoplay ainda bloqueado):", err);
+            console.error("[AUDIO] iPhone ainda bloqueou o áudio:", err);
           });
         }
       } catch (err) {
-        console.log("[AUDIO] Falha ao preparar áudio:", err);
+        console.error("[AUDIO] Falha ao preparar áudio:", err);
       }
     }
     
