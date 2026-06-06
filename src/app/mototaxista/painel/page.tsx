@@ -62,7 +62,7 @@ export default function PainelMototaxista() {
     return () => {
       clearTimeout(window.currentTimeout);
     };
-  }, [novaCorrida, corridaAtiva]);
+  }, [novaCorrida, corridaAtiva, isOnline]);
 
   // Efeito de Áudio e Vibração em Loop
   useEffect(() => {
@@ -139,6 +139,13 @@ export default function PainelMototaxista() {
     }
   };
 
+  // UseEffect separado para checar corridas só se estiver online
+  useEffect(() => {
+    if (isOnline) {
+      checkCorridasPendentes();
+    }
+  }, [isOnline]);
+
   useEffect(() => {
     const driverData = localStorage.getItem("motosango_driver");
     if (!driverData) {
@@ -148,14 +155,23 @@ export default function PainelMototaxista() {
     
     const parsedDriver = JSON.parse(driverData);
     setDriver(parsedDriver);
-    setIsOnline(parsedDriver.status_online);
+
+    // FORÇAR OFFLINE NO INÍCIO:
+    // O app sempre começa offline para obrigar o clique do usuário (desbloqueando áudio/push/gps no iOS)
+    setIsOnline(false);
+    parsedDriver.status_online = false;
+    localStorage.setItem('motosango_driver', JSON.stringify(parsedDriver));
+    
+    // Atualiza no banco em background silenciosamente
+    supabase.from('drivers')
+      .update({ status_online: false })
+      .eq('id', parsedDriver.id)
+      .then(({ error }) => {
+        if (error) console.error("Erro ao forçar offline no banco:", error);
+      });
     
     checkCorridaAtiva(parsedDriver.id);
     fetchConfig();
-
-    if (parsedDriver.status_online) {
-      checkCorridasPendentes();
-    }
 
     // Subscribe to new rides
     const ridesSub = supabase
@@ -311,9 +327,15 @@ export default function PainelMototaxista() {
     }
     
     if (newState) {
-      checkCorridasPendentes();
+      // Quando fica online, não precisamos chamar checkCorridasPendentes aqui
+      // pois o useEffect([isOnline]) já fará isso automaticamente.
+      // alert("Ficou online! Aguardando corridas...");
     } else {
       setNovaCorrida(null);
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
     }
     
     if (driver) {
