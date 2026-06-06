@@ -24,6 +24,15 @@ export default function PainelMototaxista() {
   const [configMensalidade, setConfigMensalidade] = useState<any>({ valor: 50.00, pix: '' });
   const [pushStatus, setPushStatus] = useState<string>(''); // '' | 'saving' | 'saved' | 'error'
   
+  // Referência persistente para o áudio
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  
+  // Inicializa o áudio apenas no cliente
+  useEffect(() => {
+    audioRef.current = new Audio('/beep.mp3');
+    audioRef.current.loop = true;
+  }, []);
+
   // Use refs to avoid stale closures in realtime subscriptions
   const isOnlineRef = useRef(isOnline);
   const corridaAtivaRef = useRef(corridaAtiva);
@@ -57,20 +66,20 @@ export default function PainelMototaxista() {
 
   // Efeito de Áudio e Vibração em Loop
   useEffect(() => {
-    let audio: HTMLAudioElement | null = null;
     let vibrateInterval: any = null;
 
     if (novaCorrida && !corridaAtiva) {
-      try {
-        audio = new Audio('/beep.mp3');
-        audio.loop = true;
-        // Isola a promise de play para não travar a renderização do React se falhar
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(e => console.log('Audio autoplay prevented:', e));
+      if (audioRef.current) {
+        try {
+          audioRef.current.currentTime = 0;
+          audioRef.current.loop = true;
+          const playPromise = audioRef.current.play();
+          if (playPromise !== undefined) {
+            playPromise.catch(e => console.log('Audio autoplay prevented:', e));
+          }
+        } catch (e) {
+          console.log('Audio error:', e);
         }
-      } catch (e) {
-        console.log('Audio error:', e);
       }
 
       if ('vibrate' in navigator) {
@@ -78,12 +87,17 @@ export default function PainelMototaxista() {
           try { navigator.vibrate([200, 100, 200]); } catch (e) {}
         }, 2000);
       }
+    } else {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
     }
 
     return () => {
-      if (audio) {
-        audio.pause();
-        audio.currentTime = 0;
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
       }
       if (vibrateInterval) {
         clearInterval(vibrateInterval);
@@ -270,6 +284,29 @@ export default function PainelMototaxista() {
 
     const newState = !isOnline;
     setIsOnline(newState);
+
+    // Tentar desbloquear áudio no clique do usuário (Ghost Audio para iOS)
+    if (newState && audioRef.current) {
+      try {
+        const oldVolume = audioRef.current.volume;
+        audioRef.current.volume = 0.01; // Volume quase mudo
+        const unlockPromise = audioRef.current.play();
+        if (unlockPromise !== undefined) {
+          unlockPromise.then(() => {
+            if (audioRef.current) {
+              audioRef.current.pause();
+              audioRef.current.currentTime = 0;
+              audioRef.current.volume = oldVolume;
+              console.log("[AUDIO] Áudio preparado/desbloqueado no clique de ONLINE");
+            }
+          }).catch((err) => {
+            console.log("[AUDIO] Falha ao preparar áudio (Autoplay ainda bloqueado):", err);
+          });
+        }
+      } catch (err) {
+        console.log("[AUDIO] Falha ao preparar áudio:", err);
+      }
+    }
     
     if (newState) {
       checkCorridasPendentes();
