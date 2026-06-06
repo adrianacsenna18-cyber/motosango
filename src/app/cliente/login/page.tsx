@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
@@ -9,6 +9,17 @@ export default function ClienteLogin() {
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    // Verifica se já existe um usuário logado
+    const savedUser = localStorage.getItem("motosango_user");
+    if (savedUser) {
+      router.push("/cliente/solicitar");
+    } else {
+      setCheckingAuth(false);
+    }
+  }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,6 +62,11 @@ export default function ClienteLogin() {
       setLoading(false);
     }
   };
+
+  // Enquanto verifica o localStorage, mostra uma tela vazia preta para não piscar o formulário
+  if (checkingAuth) {
+    return <div className="min-h-screen bg-black"></div>;
+  }
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-black p-6">
