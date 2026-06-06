@@ -4,6 +4,9 @@ import webpush from 'web-push';
 
 export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const driverIdParam = searchParams.get('driver_id');
+
     // 1. Configurar o Web Push com as chaves VAPID
     const vapidPublicRaw = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
     const vapidPrivateRaw = process.env.VAPID_PRIVATE_KEY;
@@ -14,20 +17,6 @@ export async function GET(request: Request) {
     if (!vapidPublic || !vapidPrivate) {
       return NextResponse.json({ error: 'Chaves VAPID não configuradas no servidor' }, { status: 500 });
     }
-
-    // DIAGNÓSTICO SEGURO DE CHAVES (ETAPA 14.18)
-    /*
-    return NextResponse.json({
-      diagnostico_seguro: true,
-      publicKeyLength: vapidPublic.length,
-      privateKeyLength: vapidPrivate.length,
-      publicKeyStartsWithB: vapidPublic.startsWith('B'),
-      privateKeyHasEquals: vapidPrivate.includes('='),
-      privateKeyHasSpaces: /\s/.test(vapidPrivateRaw || ''),
-      privateKeyFirstChar: vapidPrivate.charAt(0),
-      privateKeyLastChar: vapidPrivate.charAt(vapidPrivate.length - 1),
-    });
-    */
 
     webpush.setVapidDetails(
       'mailto:contato@motosango.com.br',
@@ -41,46 +30,90 @@ export async function GET(request: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // 3. Buscar apenas UMA inscrição ativa para teste
-    const { data: subscriptions, error } = await supabaseAdmin
+    // 3. Buscar inscrições ativas (todas, ou filtradas por driver_id se fornecido)
+    let query = supabaseAdmin
       .from('push_subscriptions')
       .select('*')
       .eq('ativo', true)
-      .order('created_at', { ascending: false })
-      .limit(1);
+      .order('created_at', { ascending: false });
+
+    if (driverIdParam) {
+      query = query.eq('driver_id', driverIdParam);
+    }
+
+    const { data: subscriptions, error } = await query;
 
     if (error) {
-      return NextResponse.json({ error: 'Erro ao buscar inscrição', details: error.message }, { status: 500 });
+      return NextResponse.json({ error: 'Erro ao buscar inscrições', details: error.message }, { status: 500 });
     }
 
     if (!subscriptions || subscriptions.length === 0) {
-      return NextResponse.json({ error: 'Nenhuma inscrição ativa encontrada para teste' }, { status: 404 });
+      return NextResponse.json({ 
+        error: 'Nenhuma inscrição ativa encontrada para teste',
+        filtro_driver_id: driverIdParam || 'Nenhum'
+      }, { status: 404 });
     }
 
-    const sub = subscriptions[0];
-
-    // 4. Montar o objeto PushSubscription no formato exigido pela biblioteca
-    const pushSubscription = {
-      endpoint: sub.endpoint,
-      keys: {
-        p256dh: sub.p256dh,
-        auth: sub.auth
-      }
-    };
-
-    // 5. Enviar a notificação push
+    // 4. Preparar payload
     const payload = JSON.stringify({
       title: 'MotoSango',
       body: 'Teste de notificação push funcionando.',
       url: '/mototaxista/painel'
     });
 
-    await webpush.sendNotification(pushSubscription, payload);
+    let totalEnviadas = 0;
+    let totalErros = 0;
+    const detalhes = [];
 
+    // 5. Enviar push para cada inscrição encontrada
+    for (const sub of subscriptions) {
+      const pushSubscription = {
+        endpoint: sub.endpoint,
+        keys: {
+          p256dh: sub.p256dh,
+          auth: sub.auth
+        }
+      };
+
+      try {
+        await webpush.sendNotification(pushSubscription, payload);
+        totalEnviadas++;
+        detalhes.push({
+          id: sub.id,
+          driver_id: sub.driver_id,
+          user_agent: sub.user_agent,
+          status: 'success'
+        });
+      } catch (pushError: any) {
+        totalErros++;
+        const statusCode = pushError.statusCode;
+        
+        detalhes.push({
+          id: sub.id,
+          driver_id: sub.driver_id,
+          user_agent: sub.user_agent,
+          status: 'error',
+          statusCode: statusCode,
+          message: pushError.message
+        });
+
+        // 6. Desativar inscrições expiradas ou revogadas (404 ou 410)
+        if (statusCode === 404 || statusCode === 410) {
+          await supabaseAdmin
+            .from('push_subscriptions')
+            .update({ ativo: false })
+            .eq('id', sub.id);
+        }
+      }
+    }
+
+    // 7. Retornar relatório
     return NextResponse.json({ 
-      success: true, 
-      message: 'Notificação enviada com sucesso!',
-      driver_id: sub.driver_id 
+      success: totalEnviadas > 0, 
+      total_encontradas: subscriptions.length,
+      total_enviadas: totalEnviadas,
+      total_erros: totalErros,
+      detalhes: detalhes
     });
 
   } catch (error: any) {
