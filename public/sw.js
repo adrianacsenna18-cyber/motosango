@@ -1,24 +1,45 @@
 self.addEventListener('push', function(event) {
+  console.log("[SW] Push recebido");
+  
+  let payload = {};
+  
   if (event.data) {
-    const data = event.data.json();
-    const options = {
-      body: data.body || 'Você tem uma nova solicitação de corrida!',
-      icon: '/icon-192x192.png',
-      badge: '/icon-192x192.png',
-      vibrate: [200, 100, 200, 100, 200, 100, 200],
-      requireInteraction: true,
-      renotify: true,
-      silent: false,
-      tag: 'nova-corrida',
-      data: {
-        url: data.url || '/mototaxista/painel'
+    try {
+      payload = event.data.json();
+      console.log("[SW] Payload JSON lido:", payload);
+    } catch (e1) {
+      try {
+        const textData = event.data.text();
+        console.log("[SW] Payload texto lido:", textData);
+        payload = { body: textData };
+      } catch (e2) {
+        console.log("[SW] Falha ao ler payload, usando fallback", e2);
       }
-    };
-
-    event.waitUntil(
-      self.registration.showNotification(data.title || '🚨 Nova Corrida no MotoSango!', options)
-    );
+    }
+  } else {
+    console.log("[SW] Payload vazio, usando fallback");
   }
+
+  const title = payload.title || "MotoSango";
+  const options = {
+    body: payload.body || "Nova corrida disponível",
+    icon: "/icon-192x192.png",
+    badge: "/icon-192x192.png",
+    tag: "motosango-corrida",
+    renotify: true,
+    requireInteraction: true,
+    silent: false,
+    vibrate: [200, 100, 200, 100, 200, 100, 200],
+    data: payload.data || payload || { url: "/mototaxista/painel" }
+  };
+
+  console.log("[SW] showNotification chamado com title:", title, "e options:", options);
+
+  event.waitUntil(
+    self.registration.showNotification(title, options)
+      .then(() => console.log("[SW] showNotification sucesso"))
+      .catch((err) => console.error("[SW] showNotification erro:", err))
+  );
 });
 
 self.addEventListener('notificationclick', function(event) {
