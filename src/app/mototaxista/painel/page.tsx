@@ -429,19 +429,18 @@ export default function PainelMototaxista() {
       }
 
       alert("6 - Verificando inscrição antiga...");
-      const existingSubscription = await registration.pushManager.getSubscription();
+      let subscription = await registration.pushManager.getSubscription();
       
-      if (existingSubscription) {
-        alert("Cancelando inscrição da chave antiga...");
-        await existingSubscription.unsubscribe();
+      if (subscription) {
+        alert("Inscrição existente encontrada, reutilizando");
+      } else {
+        alert("Nenhuma inscrição encontrada, criando nova");
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
+        });
+        alert("7 - PushSubscription criada");
       }
-
-      alert("6.1 - Criando inscrição com a NOVA chave...");
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
-      });
-      alert("7 - PushSubscription criada");
 
       alert("8 - Antes do fetch");
       const response = await fetch('/api/push/subscribe', {
