@@ -126,6 +126,11 @@ export default function SolicitarCorrida() {
 
       if (error) throw error;
       
+      // Disparar push notification em background sem travar a tela
+      fetch('/api/push/notify-all', { method: 'POST' }).catch(err => 
+        console.error("Erro ao disparar push de notificação:", err)
+      );
+      
       router.push(`/cliente/corrida/${data[0].id}`);
     } catch (error) {
       console.error("Erro ao solicitar:", error);
