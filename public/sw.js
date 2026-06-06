@@ -20,17 +20,19 @@ self.addEventListener('push', function(event) {
     console.log("[SW] Payload vazio, usando fallback");
   }
 
-  const title = payload.title || "MotoSango";
+  const title = payload.title || '🚨 Nova Corrida no MotoSango!';
   const options = {
-    body: payload.body || "Nova corrida disponível",
-    icon: "/icon-192x192.png",
-    badge: "/icon-192x192.png",
-    tag: "motosango-corrida",
-    renotify: true,
-    requireInteraction: true,
-    silent: false,
+    body: payload.body || 'Você tem uma nova solicitação de corrida!',
+    icon: '/icon-192x192.png',
+    badge: '/icon-192x192.png',
     vibrate: [200, 100, 200, 100, 200, 100, 200],
-    data: payload.data || payload || { url: "/mototaxista/painel" }
+    requireInteraction: true,
+    renotify: true,
+    silent: false,
+    tag: 'nova-corrida',
+    data: {
+      url: payload.url || '/mototaxista/painel'
+    }
   };
 
   console.log("[SW] showNotification chamado com title:", title, "e options:", options);
