@@ -215,10 +215,22 @@ export default function PainelMototaxista() {
       )
       .subscribe();
 
+    // Listener para Visibility Change (App acordando do background)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        console.log("[PAINEL] App voltou ao foco, verificando corridas pendentes");
+        if (isOnlineRef.current) {
+          checkCorridasPendentes();
+        }
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
       supabase.removeChannel(ridesSub);
       supabase.removeChannel(ridesUpdateSub);
       supabase.removeChannel(driverUpdateSub);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       clearTimeout(window.currentTimeout);
     };
   }, [router]); // Removed isOnline and corridaAtiva to prevent recreating the channel
