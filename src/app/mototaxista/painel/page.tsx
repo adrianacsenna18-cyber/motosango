@@ -6,6 +6,62 @@ import { supabase } from "@/lib/supabase";
 import { MotoBottomNav } from "@/components/layout/MotoBottomNav";
 import { Navigation, CheckCircle2, XCircle, Copy, Bell } from "lucide-react";
 
+const AddressDisplay = ({ address }: { address: string }) => {
+  const [readable, setReadable] = useState<string>('');
+  const [coords, setCoords] = useState<{lat: string, lng: string} | null>(null);
+
+  useEffect(() => {
+    if (!address) return;
+    if (address.startsWith('Lat:')) {
+      const match = address.match(/Lat:\s*([-\d.]+),\s*Lng:\s*([-\d.]+)/);
+      if (match) {
+        setCoords({ lat: match[1], lng: match[2] });
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${match[1]}&lon=${match[2]}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.address) {
+              const { road, house_number, suburb, city, town, village } = data.address;
+              const cityName = city || town || village || '';
+              const parts = [];
+              if (road) parts.push(house_number ? `${road}, ${house_number}` : road);
+              if (suburb) parts.push(suburb);
+              if (cityName) parts.push(cityName);
+              setReadable(parts.join(', '));
+            } else {
+              setReadable('Localização não resolvida');
+            }
+          })
+          .catch(() => setReadable('Localização não resolvida'));
+      }
+    }
+  }, [address]);
+
+  if (!address) return null;
+
+  if (address.startsWith('Lat:') && coords) {
+    return (
+      <div className="flex flex-col gap-2 mt-1">
+        <div className="flex flex-col">
+          <span className="text-xs text-gray-500 font-bold">📍 Localização do cliente:</span>
+          <span className="font-bold text-dark text-sm leading-snug">
+            {readable || 'Buscando endereço...'}
+          </span>
+        </div>
+        <a 
+          href={`https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lng}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center justify-center gap-2 bg-blue-50 text-blue-700 px-4 py-2.5 rounded-xl text-sm font-black w-fit shadow-sm border border-blue-100 hover:bg-blue-100 transition-colors"
+        >
+          <span className="text-lg">🗺️</span> Abrir rota
+        </a>
+      </div>
+    );
+  }
+
+  return <span className="font-bold text-dark text-lg">{address}</span>;
+};
+
 declare global {
   interface Window {
     currentTimeout: any;
@@ -104,14 +160,6 @@ export default function PainelMototaxista() {
       }
     };
   }, [novaCorrida, corridaAtiva]);
-
-  const formatAddressForDisplay = (address: string | undefined | null) => {
-    if (!address) return '';
-    if (address.startsWith('Lat:')) {
-      return '📍 Localização compartilhada pelo cliente';
-    }
-    return address;
-  };
 
   const checkCorridasPendentes = async () => {
     // Apenas puxar corridas aguardando das últimas 12 horas
@@ -733,14 +781,14 @@ export default function PainelMototaxista() {
                 <div className="w-4 h-4 rounded-full bg-green-500 mt-1 shadow-sm"></div>
                 <div>
                   <p className="text-xs text-gray-500 font-medium">Origem</p>
-                  <p className="font-bold text-dark text-lg">{formatAddressForDisplay(novaCorrida.origem)}</p>
+                  <AddressDisplay address={novaCorrida.origem} />
                 </div>
               </div>
               <div className="flex gap-4 items-start">
                 <div className="w-4 h-4 rounded-full bg-red-500 mt-1 shadow-sm"></div>
                 <div>
                   <p className="text-xs text-gray-500 font-medium">Destino</p>
-                  <p className="font-bold text-dark text-lg">{formatAddressForDisplay(novaCorrida.destino)}</p>
+                  <AddressDisplay address={novaCorrida.destino} />
                 </div>
               </div>
             </div>
@@ -843,14 +891,14 @@ export default function PainelMototaxista() {
                 <div className="w-3 h-3 rounded-full bg-green-500 mt-1.5"></div>
                 <div>
                   <p className="text-xs text-gray-500 font-medium">Origem</p>
-                  <p className="font-bold text-dark">{formatAddressForDisplay(corridaAtiva.origem)}</p>
+                  <AddressDisplay address={corridaAtiva.origem} />
                 </div>
               </div>
               <div className="flex gap-4 items-start">
                 <div className="w-3 h-3 rounded-full bg-red-500 mt-1.5"></div>
                 <div>
                   <p className="text-xs text-gray-500 font-medium">Destino</p>
-                  <p className="font-bold text-dark">{formatAddressForDisplay(corridaAtiva.destino)}</p>
+                  <AddressDisplay address={corridaAtiva.destino} />
                 </div>
               </div>
             </div>
