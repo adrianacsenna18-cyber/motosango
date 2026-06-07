@@ -9,14 +9,19 @@ import { Navigation, CheckCircle2, XCircle, Copy, Bell } from "lucide-react";
 const AddressDisplay = ({ address }: { address: string }) => {
   const [readable, setReadable] = useState<string>('');
   const [coords, setCoords] = useState<{lat: string, lng: string} | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
     if (!address) return;
-    if (address.startsWith('Lat:')) {
-      const match = address.match(/Lat:\s*([-\d.]+),\s*Lng:\s*([-\d.]+)/);
-      if (match) {
-        setCoords({ lat: match[1], lng: match[2] });
-        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${match[1]}&lon=${match[2]}`)
+    if (address.includes('Lat:') && address.includes('Lng:')) {
+      setIsLoading(true);
+      // Extrair números ignorando formatação exata (pega qualquer sequência de números, ponto e sinal de menos após Lat e Lng)
+      const latMatch = address.match(/Lat:\s*([-\d.]+)/);
+      const lngMatch = address.match(/Lng:\s*([-\d.]+)/);
+      
+      if (latMatch && lngMatch) {
+        setCoords({ lat: latMatch[1], lng: lngMatch[1] });
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latMatch[1]}&lon=${lngMatch[1]}`)
           .then(res => res.json())
           .then(data => {
             if (data && data.address) {
@@ -28,33 +33,39 @@ const AddressDisplay = ({ address }: { address: string }) => {
               if (cityName) parts.push(cityName);
               setReadable(parts.join(', '));
             } else {
-              setReadable('Localização não resolvida');
+              setReadable('Localização recebida pelo GPS');
             }
           })
-          .catch(() => setReadable('Localização não resolvida'));
+          .catch(() => setReadable('Localização recebida pelo GPS'))
+          .finally(() => setIsLoading(false));
+      } else {
+         setReadable('Localização recebida pelo GPS');
+         setIsLoading(false);
       }
     }
   }, [address]);
 
   if (!address) return null;
 
-  if (address.startsWith('Lat:') && coords) {
+  if (address.includes('Lat:') && address.includes('Lng:')) {
     return (
       <div className="flex flex-col gap-2 mt-1">
         <div className="flex flex-col">
           <span className="text-xs text-gray-500 font-bold">📍 Localização do cliente:</span>
           <span className="font-bold text-dark text-sm leading-snug">
-            {readable || 'Buscando endereço...'}
+            {isLoading ? 'Buscando endereço...' : (readable || 'Localização recebida pelo GPS')}
           </span>
         </div>
-        <a 
-          href={`https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lng}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center justify-center gap-2 bg-blue-50 text-blue-700 px-4 py-2.5 rounded-xl text-sm font-black w-fit shadow-sm border border-blue-100 hover:bg-blue-100 transition-colors"
-        >
-          <span className="text-lg">🗺️</span> Abrir rota
-        </a>
+        {coords && (
+          <a 
+            href={`https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lng}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2 bg-blue-50 text-blue-700 px-4 py-2.5 rounded-xl text-sm font-black w-fit shadow-sm border border-blue-100 hover:bg-blue-100 transition-colors"
+          >
+            <span className="text-lg">🗺️</span> Abrir rota
+          </a>
+        )}
       </div>
     );
   }
