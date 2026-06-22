@@ -153,8 +153,10 @@ export default function AdminDashboard() {
         <div className="p-4 border-t border-[#222]">
           <button 
             onClick={() => {
-              localStorage.removeItem("motosango_admin");
-              router.push("/admin/login");
+              if (confirm("Deseja realmente sair do painel administrador?")) {
+                localStorage.removeItem("motosango_admin");
+                router.push("/");
+              }
             }}
             className="w-full text-left px-4 py-2 text-red-400 hover:text-red-300 transition-colors"
           >
@@ -186,6 +188,18 @@ export default function AdminDashboard() {
           <div className="flex items-center gap-3">
             <span className="text-sm text-gray-400">Olá, Admin</span>
             <div className="w-10 h-10 bg-[#1A1A1A] rounded-full flex items-center justify-center text-xl shadow-sm border-2 border-[#FFD000]">👤</div>
+            <button 
+              onClick={() => {
+                if (confirm("Deseja realmente sair do painel administrador?")) {
+                  localStorage.removeItem("motosango_admin");
+                  router.push("/");
+                }
+              }}
+              className="md:hidden ml-2 text-red-400 hover:text-red-300 p-2"
+              title="Sair"
+            >
+              <LogOut size={20} />
+            </button>
           </div>
         </header>
           
