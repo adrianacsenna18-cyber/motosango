@@ -1,7 +1,24 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Clock, ShieldCheck, MapPin } from "lucide-react";
 
 export default function Home() {
+  const router = useRouter();
+
+  useEffect(() => {
+    // Redirecionamento automático se já estiver logado (funciona como uma Splash Screen)
+    if (localStorage.getItem("motosango_driver")) {
+      router.push("/mototaxista/painel");
+    } else if (localStorage.getItem("motosango_user")) {
+      router.push("/cliente/solicitar");
+    } else if (localStorage.getItem("motosango_admin")) {
+      router.push("/admin/dashboard");
+    }
+  }, [router]);
+
   return (
     <div className="flex flex-col items-center min-h-screen bg-black text-white relative overflow-hidden">
       {/* Main Content */}

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
 export default function AdminLogin() {
@@ -9,6 +10,17 @@ export default function AdminLogin() {
   const [login, setLogin] = useState("");
   const [senha, setSenha] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    // Verifica se já existe um admin logado
+    const savedAdmin = localStorage.getItem("motosango_admin");
+    if (savedAdmin) {
+      router.push("/admin/dashboard");
+    } else {
+      setCheckingAuth(false);
+    }
+  }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,10 +49,15 @@ export default function AdminLogin() {
     }
   };
 
+  // Enquanto verifica o localStorage, mostra uma tela vazia preta para não piscar o formulário
+  if (checkingAuth) {
+    return <div className="min-h-screen bg-black"></div>;
+  }
+
   return (
     <div className="flex flex-col fixed inset-0 z-50 bg-black p-6 items-center justify-center w-full h-full">
-      <div className="w-full max-w-sm bg-[#111111] p-8 rounded-[2rem] shadow-2xl border border-[#222222]">
-        <div className="flex flex-col items-center justify-center mb-8 relative z-20">
+      <div className="w-full max-w-sm bg-[#111111] p-8 rounded-[2rem] shadow-2xl border border-[#222222] flex flex-col items-center">
+        <div className="flex flex-col items-center justify-center mb-8 relative z-20 w-full">
           <div className="w-24 h-24 mb-4 flex items-center justify-center">
             <img src="/logo.png" alt="MotoSango Logo" className="w-full h-full object-contain drop-shadow-lg" />
           </div>
@@ -82,6 +99,10 @@ export default function AdminLogin() {
             {loading ? "Acessando..." : "Entrar no Painel"}
           </button>
         </form>
+
+        <Link href="/" className="mt-8 text-xs text-gray-500 hover:text-white transition-colors block text-center">
+          ← Voltar ao início
+        </Link>
       </div>
     </div>
   );
