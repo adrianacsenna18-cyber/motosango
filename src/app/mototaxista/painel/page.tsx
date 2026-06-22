@@ -11,6 +11,10 @@ const AddressDisplay = ({ address }: { address: string }) => {
   const [coords, setCoords] = useState<{lat: string, lng: string} | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  // Extrai o complemento caso tenha sido enviado pelo cliente "(Comp: XYZ)"
+  const compMatch = address?.match(/\(Comp:\s*(.+?)\)$/);
+  const complemento = compMatch ? compMatch[1] : '';
+
   useEffect(() => {
     if (!address) return;
     if (address.includes('Lat:') && address.includes('Lng:')) {
@@ -54,6 +58,7 @@ const AddressDisplay = ({ address }: { address: string }) => {
           <span className="text-xs text-gray-500 font-bold">📍 Localização do cliente:</span>
           <span className="font-bold text-dark text-sm leading-snug">
             {isLoading ? 'Buscando endereço...' : (readable || 'Localização recebida pelo GPS')}
+            {complemento && ` - ${complemento}`}
           </span>
         </div>
         {coords && (

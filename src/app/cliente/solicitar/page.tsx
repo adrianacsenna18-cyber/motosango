@@ -10,6 +10,7 @@ export default function SolicitarCorrida() {
   const router = useRouter();
   const pathname = usePathname();
   const [origem, setOrigem] = useState("");
+  const [complemento, setComplemento] = useState("");
   const [destino, setDestino] = useState("");
   const [referencia, setReferencia] = useState("");
   const [tipoCorrida, setTipoCorrida] = useState("normal");
@@ -153,12 +154,14 @@ export default function SolicitarCorrida() {
     e.preventDefault();
     setLoading(true);
 
+    const origemCompleta = complemento.trim() !== "" ? `${origem} (Comp: ${complemento.trim()})` : origem;
+
     try {
       const { data, error } = await supabase
         .from("rides")
         .insert([{
           cliente_id: user.id,
-          origem,
+          origem: origemCompleta,
           destino,
           referencia,
           tipo_corrida: tipoCorrida,
@@ -181,6 +184,7 @@ export default function SolicitarCorrida() {
       // Resetar o estado local ANTES de navegar
       // Isso evita que o Next.js faça cache da tela com o loading=true e com os dados da corrida antiga
       setOrigem("");
+      setComplemento("");
       setDestino("");
       setReferencia("");
       setTipoCorrida("normal");
@@ -257,6 +261,16 @@ export default function SolicitarCorrida() {
               >
                 📍 GPS
               </button>
+            </div>
+
+            <div className="relative">
+              <input 
+                type="text" 
+                value={complemento}
+                onChange={(e) => setComplemento(e.target.value)}
+                className="w-full bg-[#F9FAFB] border border-gray-200 rounded-2xl p-4 outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm font-medium text-black placeholder-gray-400"
+                placeholder="Número ou complemento (Ex: 123, casa azul, portão preto)"
+              />
             </div>
 
             <div className="relative">
