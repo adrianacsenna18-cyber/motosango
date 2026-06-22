@@ -29,13 +29,30 @@ const AddressDisplay = ({ address }: { address: string }) => {
           .then(res => res.json())
           .then(data => {
             if (data && data.address) {
-              const { road, house_number, suburb, city, town, village } = data.address;
+              const { road, suburb, city, town, village } = data.address;
               const cityName = city || town || village || '';
-              const parts = [];
-              if (road) parts.push(house_number ? `${road}, ${house_number}` : road);
-              if (suburb) parts.push(suburb);
-              if (cityName) parts.push(cityName);
-              setReadable(parts.join(', '));
+              
+              // Montagem inteligente para embutir o complemento entre a Rua e a Cidade
+              let enderecoFormatado = '';
+              
+              if (road) {
+                enderecoFormatado += road;
+                if (complemento) {
+                  enderecoFormatado += `, ${complemento}`;
+                }
+              } else if (complemento) {
+                enderecoFormatado += complemento;
+              }
+              
+              if (suburb) {
+                enderecoFormatado += enderecoFormatado ? ` - ${suburb}` : suburb;
+              }
+              
+              if (cityName) {
+                enderecoFormatado += enderecoFormatado ? ` - ${cityName}` : cityName;
+              }
+              
+              setReadable(enderecoFormatado);
             } else {
               setReadable('Localização recebida pelo GPS');
             }
@@ -58,7 +75,6 @@ const AddressDisplay = ({ address }: { address: string }) => {
           <span className="text-xs text-gray-500 font-bold">📍 Localização do cliente:</span>
           <span className="font-bold text-dark text-sm leading-snug">
             {isLoading ? 'Buscando endereço...' : (readable || 'Localização recebida pelo GPS')}
-            {complemento && ` - ${complemento}`}
           </span>
         </div>
         {coords && (
