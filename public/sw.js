@@ -21,22 +21,25 @@ self.addEventListener('push', function(event) {
   }
 
   const title = payload.title || '🚨 Nova Corrida no MotoSango!';
+  
+  // Opções básicas compatíveis com iOS/Apple
   const options = {
     body: payload.body || 'Você tem uma nova solicitação de corrida!',
     icon: '/icon-192x192.png',
-    badge: '/icon-192x192.png',
-    vibrate: [200, 100, 200, 100, 200, 100, 200],
     data: {
       url: payload.url || '/mototaxista/painel'
     }
   };
 
-  // requireInteraction, tag e renotify causam descarte silencioso no iOS PWA Background
-  // Vamos aplicar apenas no Android
+  // Verificação de dispositivo
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
                (navigator.userAgent.includes("Mac") && "ontouchend" in document);
                
+  // Propriedades agressivas (vibrate, badge, tag, requireInteraction, etc) 
+  // causam descarte silencioso no iOS PWA Background, então aplicamos apenas no Android
   if (!isIOS) {
+    options.badge = '/icon-192x192.png';
+    options.vibrate = [200, 100, 200, 100, 200, 100, 200];
     options.requireInteraction = true;
     options.tag = 'nova-corrida';
     options.renotify = true;
