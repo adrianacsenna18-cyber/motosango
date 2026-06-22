@@ -210,41 +210,46 @@ export default function SolicitarCorrida() {
             </div>
 
             <div className="relative">
-              <div className="absolute top-1/2 -translate-y-1/2 left-5 w-3 h-3 rounded-full bg-primary shadow-sm z-10"></div>
+              <div className="absolute top-1/2 -translate-y-1/2 left-5 w-3 h-3 rounded-full bg-primary shadow-sm z-10 pointer-events-none"></div>
               {tipoCorrida === 'especial' ? (
-                <select
-                  required
-                  value={destino}
-                  onChange={(e) => setDestino(e.target.value)}
-                  className="w-full bg-[#F9FAFB] border border-gray-200 rounded-2xl p-4 pl-12 outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all font-medium text-black text-sm appearance-none"
-                >
-                  <option value="" disabled>Selecione o destino especial...</option>
-                  <option value="Guarda dos Ferreiros">Guarda dos Ferreiros</option>
-                  <option value="Agrovila">Agrovila</option>
-                  <option value="Coopadap">Coopadap</option>
-                  <option value="Capelinha de Cima">Capelinha de Cima</option>
-                  <option value="Capelinha de Baixo">Capelinha de Baixo</option>
-                  <option value="Rio Paranaíba">Rio Paranaíba</option>
-                  <option value="Vera Shimada">Vera Shimada</option>
-                  <option value="Campos Altos">Campos Altos</option>
-                  <option value="Ibiá">Ibiá</option>
-                  <option value="Carmo do Paranaíba">Carmo do Paranaíba</option>
-                  <option value="Santa Rosa">Santa Rosa</option>
-                  <option value="Patos de Minas">Patos de Minas</option>
-                  <option value="Araxá">Araxá</option>
-                  <option value="Aeroporto">Aeroporto</option>
-                  <option value="Matutina">Matutina</option>
-                  <option value="Tiros">Tiros</option>
-                  <option value="Sekita">Sekita</option>
-                  <option value="Outros">Outros</option>
-                </select>
+                <div className="relative w-full">
+                  <select
+                    required
+                    value={destino}
+                    onChange={(e) => setDestino(e.target.value)}
+                    className="w-full bg-[#F9FAFB] border border-gray-200 rounded-2xl p-4 pl-12 pr-10 outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all font-medium text-black text-sm appearance-none cursor-pointer relative z-20"
+                  >
+                    <option value="" disabled>Selecione o destino especial...</option>
+                    <option value="Guarda dos Ferreiros">Guarda dos Ferreiros</option>
+                    <option value="Agrovila">Agrovila</option>
+                    <option value="Coopadap">Coopadap</option>
+                    <option value="Capelinha de Cima">Capelinha de Cima</option>
+                    <option value="Capelinha de Baixo">Capelinha de Baixo</option>
+                    <option value="Rio Paranaíba">Rio Paranaíba</option>
+                    <option value="Vera Shimada">Vera Shimada</option>
+                    <option value="Campos Altos">Campos Altos</option>
+                    <option value="Ibiá">Ibiá</option>
+                    <option value="Carmo do Paranaíba">Carmo do Paranaíba</option>
+                    <option value="Santa Rosa">Santa Rosa</option>
+                    <option value="Patos de Minas">Patos de Minas</option>
+                    <option value="Araxá">Araxá</option>
+                    <option value="Aeroporto">Aeroporto</option>
+                    <option value="Matutina">Matutina</option>
+                    <option value="Tiros">Tiros</option>
+                    <option value="Sekita">Sekita</option>
+                    <option value="Outros">Outros</option>
+                  </select>
+                  <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none z-30">
+                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                  </div>
+                </div>
               ) : (
                 <input 
                   type="text" 
                   required
                   value={destino}
                   onChange={(e) => setDestino(e.target.value)}
-                  className="w-full bg-[#F9FAFB] border border-gray-200 rounded-2xl p-4 pl-12 outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all font-medium text-black text-sm placeholder-gray-400"
+                  className="w-full bg-[#F9FAFB] border border-gray-200 rounded-2xl p-4 pl-12 outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all font-medium text-black text-sm placeholder-gray-400 relative z-20"
                   placeholder="Para onde você vai?"
                 />
               )}
