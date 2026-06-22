@@ -223,19 +223,27 @@ export default function PainelMototaxista() {
     const parsedDriver = JSON.parse(driverData);
     setDriver(parsedDriver);
 
-    // FORÇAR OFFLINE NO INÍCIO:
-    // O app sempre começa offline para obrigar o clique do usuário (desbloqueando áudio/push/gps no iOS)
-    setIsOnline(false);
-    parsedDriver.status_online = false;
-    localStorage.setItem('motosango_driver', JSON.stringify(parsedDriver));
-    
-    // Atualiza no banco em background silenciosamente
-    supabase.from('drivers')
-      .update({ status_online: false })
-      .eq('id', parsedDriver.id)
-      .then(({ error }) => {
-        if (error) console.error("Erro ao forçar offline no banco:", error);
-      });
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                 (navigator.userAgent.includes("Mac") && "ontouchend" in document);
+
+    if (isIOS) {
+      // FORÇAR OFFLINE NO INÍCIO (Apenas iOS):
+      // O app sempre começa offline para obrigar o clique do usuário (desbloqueando áudio/push/gps no iOS)
+      setIsOnline(false);
+      parsedDriver.status_online = false;
+      localStorage.setItem('motosango_driver', JSON.stringify(parsedDriver));
+      
+      // Atualiza no banco em background silenciosamente
+      supabase.from('drivers')
+        .update({ status_online: false })
+        .eq('id', parsedDriver.id)
+        .then(({ error }) => {
+          if (error) console.error("Erro ao forçar offline no banco:", error);
+        });
+    } else {
+      // ANDROID / PC: Restaura o último status conhecido (mantém ONLINE ao trocar de telas)
+      setIsOnline(parsedDriver.status_online === true);
+    }
     
     checkCorridaAtiva(parsedDriver.id);
     fetchConfig();
