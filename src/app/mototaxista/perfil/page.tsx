@@ -21,7 +21,7 @@ export default function PerfilMototaxista() {
   const handleLogout = () => {
     if (confirm("Deseja realmente sair do aplicativo?")) {
       localStorage.removeItem("motosango_driver");
-      router.push("/mototaxista/login");
+      router.push("/");
     }
   };
 
