@@ -26,18 +26,18 @@ self.addEventListener('push', function(event) {
     icon: '/icon-192x192.png',
     badge: '/icon-192x192.png',
     vibrate: [200, 100, 200, 100, 200, 100, 200],
-    requireInteraction: true,
     data: {
       url: payload.url || '/mototaxista/painel'
     }
   };
 
-  // Re-adicionando a tag APENAS se não for iOS/WebKit, porque WebKit tem bugs conhecidos
-  // com tag + renotify que fazem a notificação não aparecer.
+  // requireInteraction, tag e renotify causam descarte silencioso no iOS PWA Background
+  // Vamos aplicar apenas no Android
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
                (navigator.userAgent.includes("Mac") && "ontouchend" in document);
                
   if (!isIOS) {
+    options.requireInteraction = true;
     options.tag = 'nova-corrida';
     options.renotify = true;
   }
