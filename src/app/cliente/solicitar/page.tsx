@@ -211,14 +211,43 @@ export default function SolicitarCorrida() {
 
             <div className="relative">
               <div className="absolute top-1/2 -translate-y-1/2 left-5 w-3 h-3 rounded-full bg-primary shadow-sm z-10"></div>
-              <input 
-                type="text" 
-                required
-                value={destino}
-                onChange={(e) => setDestino(e.target.value)}
-                className="w-full bg-[#F9FAFB] border border-gray-200 rounded-2xl p-4 pl-12 outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all font-medium text-black text-sm placeholder-gray-400"
-                placeholder="Para onde você vai?"
-              />
+              {tipoCorrida === 'especial' ? (
+                <select
+                  required
+                  value={destino}
+                  onChange={(e) => setDestino(e.target.value)}
+                  className="w-full bg-[#F9FAFB] border border-gray-200 rounded-2xl p-4 pl-12 outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all font-medium text-black text-sm appearance-none"
+                >
+                  <option value="" disabled>Selecione o destino especial...</option>
+                  <option value="Guarda dos Ferreiros">Guarda dos Ferreiros</option>
+                  <option value="Agrovila">Agrovila</option>
+                  <option value="Coopadap">Coopadap</option>
+                  <option value="Capelinha de Cima">Capelinha de Cima</option>
+                  <option value="Capelinha de Baixo">Capelinha de Baixo</option>
+                  <option value="Rio Paranaíba">Rio Paranaíba</option>
+                  <option value="Vera Shimada">Vera Shimada</option>
+                  <option value="Campos Altos">Campos Altos</option>
+                  <option value="Ibiá">Ibiá</option>
+                  <option value="Carmo do Paranaíba">Carmo do Paranaíba</option>
+                  <option value="Santa Rosa">Santa Rosa</option>
+                  <option value="Patos de Minas">Patos de Minas</option>
+                  <option value="Araxá">Araxá</option>
+                  <option value="Aeroporto">Aeroporto</option>
+                  <option value="Matutina">Matutina</option>
+                  <option value="Tiros">Tiros</option>
+                  <option value="Sekita">Sekita</option>
+                  <option value="Outros">Outros</option>
+                </select>
+              ) : (
+                <input 
+                  type="text" 
+                  required
+                  value={destino}
+                  onChange={(e) => setDestino(e.target.value)}
+                  className="w-full bg-[#F9FAFB] border border-gray-200 rounded-2xl p-4 pl-12 outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all font-medium text-black text-sm placeholder-gray-400"
+                  placeholder="Para onde você vai?"
+                />
+              )}
             </div>
 
             <div className="mt-1">
