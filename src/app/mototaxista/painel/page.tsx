@@ -103,7 +103,26 @@ const AddressDisplay = ({ address }: { address: string }) => {
     );
   }
 
-  return <span className="font-bold text-dark text-lg">{address}</span>;
+  // Para endereço digitado manualmente (sem Lat/Lng), vamos tratar a exibição do complemento
+  let enderecoManualFormatado = address;
+  if (!address.includes('Lat:') && !address.includes('Lng:') && complemento) {
+    // Remove o bloco (Comp: XYZ) do endereço original
+    const enderecoSemComp = address.replace(/\(Comp:\s*(.+?)\)$/, '').trim();
+    
+    // Se o cliente digitou "Rua, Cidade", nós quebramos para injetar o complemento no meio
+    if (enderecoSemComp.includes(',')) {
+      const partes = enderecoSemComp.split(',').map(p => p.trim());
+      const rua = partes[0];
+      const cidade = partes.slice(1).join(', '); // Pega tudo depois da primeira vírgula como cidade
+      
+      enderecoManualFormatado = `${rua}, ${complemento} - ${cidade}`;
+    } else {
+      // Se não tem vírgula, apenas adiciona no final de forma limpa
+      enderecoManualFormatado = `${enderecoSemComp}, ${complemento}`;
+    }
+  }
+
+  return <span className="font-bold text-dark text-lg">{enderecoManualFormatado}</span>;
 };
 
 declare global {
