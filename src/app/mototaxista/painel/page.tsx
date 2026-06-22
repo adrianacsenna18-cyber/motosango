@@ -38,7 +38,7 @@ const AddressDisplay = ({ address }: { address: string }) => {
 
               // Tratar o bug do Nominatim onde a cidade vem colada na rua após a vírgula
               if (ruaLimpa && ruaLimpa.includes(',')) {
-                const parts = ruaLimpa.split(',').map(p => p.trim());
+                const parts = ruaLimpa.split(',').map((p: string) => p.trim());
                 ruaLimpa = parts[0]; // Pega apenas a rua real
                 
                 // Se a segunda parte for o nome de uma cidade (ou não tivermos cidade ainda), a recuperamos
@@ -111,7 +111,7 @@ const AddressDisplay = ({ address }: { address: string }) => {
     
     // Se o cliente digitou "Rua, Cidade", nós quebramos para injetar o complemento no meio
     if (enderecoSemComp.includes(',')) {
-      const partes = enderecoSemComp.split(',').map(p => p.trim());
+      const partes = enderecoSemComp.split(',').map((p: string) => p.trim());
       const rua = partes[0];
       const cidade = partes.slice(1).join(', '); // Pega tudo depois da primeira vírgula como cidade
       
