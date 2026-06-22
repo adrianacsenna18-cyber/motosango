@@ -27,13 +27,20 @@ self.addEventListener('push', function(event) {
     badge: '/icon-192x192.png',
     vibrate: [200, 100, 200, 100, 200, 100, 200],
     requireInteraction: true,
-    renotify: true,
-    silent: false,
-    tag: 'nova-corrida',
     data: {
       url: payload.url || '/mototaxista/painel'
     }
   };
+
+  // Re-adicionando a tag APENAS se não for iOS/WebKit, porque WebKit tem bugs conhecidos
+  // com tag + renotify que fazem a notificação não aparecer.
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+               (navigator.userAgent.includes("Mac") && "ontouchend" in document);
+               
+  if (!isIOS) {
+    options.tag = 'nova-corrida';
+    options.renotify = true;
+  }
 
   console.log("[SW] showNotification chamado com title:", title, "e options:", options);
 
