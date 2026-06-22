@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 import { ClienteBottomNav } from "@/components/layout/ClienteBottomNav";
 
 export default function SolicitarCorrida() {
   const router = useRouter();
+  const pathname = usePathname();
   const [origem, setOrigem] = useState("");
   const [destino, setDestino] = useState("");
   const [referencia, setReferencia] = useState("");
@@ -16,6 +17,21 @@ export default function SolicitarCorrida() {
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [tarifaBase, setTarifaBase] = useState(10.00);
+
+  // FAILSAFE: Se o usuário interagir com o formulário, garantimos que loading seja falso
+  useEffect(() => {
+    if (loading) setLoading(false);
+  }, [origem, destino, tipoCorrida, formaPagamento]);
+
+  // RESET TOTAL AO VOLTAR PARA A TELA: Garante que o Next.js não mantenha cache quebrado
+  useEffect(() => {
+    if (pathname === '/cliente/solicitar') {
+      setLoading(false);
+      // Não resetamos origem e destino aqui para não apagar o que o usuário já digitou,
+      // a menos que estejamos vindo de um redirect direto de finalização.
+      // Como já limpamos antes de sair, deve estar vazio.
+    }
+  }, [pathname]);
 
   useEffect(() => {
     const userData = localStorage.getItem("motosango_user");
@@ -354,7 +370,7 @@ export default function SolicitarCorrida() {
 
             <button 
               type="submit" 
-              disabled={loading || !origem || !destino}
+              disabled={loading || origem.trim() === "" || destino.trim() === ""}
               className="mt-4 w-full py-4 bg-primary text-black font-black text-center rounded-full text-lg shadow-[0_10px_20px_rgba(255,208,0,0.2)] hover:scale-[1.02] disabled:opacity-50 disabled:shadow-none disabled:hover:scale-100 transition-all active:scale-[0.98] flex justify-center items-center gap-2 uppercase tracking-wide"
             >
               {loading ? "Buscando..." : "🚖 Chamar mototáxi agora"}
