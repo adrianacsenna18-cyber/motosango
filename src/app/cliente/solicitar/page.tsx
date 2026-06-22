@@ -33,6 +33,27 @@ export default function SolicitarCorrida() {
       }
     };
     fetchSettings();
+
+    // Garantir que o estado de loading e formulário não fiquem travados 
+    // ao voltar de uma corrida finalizada (Next.js bfcache)
+    setLoading(false);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        setLoading(false);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    const handlePageShow = () => {
+      setLoading(false);
+    };
+    window.addEventListener('pageshow', handlePageShow);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pageshow', handlePageShow);
+    };
   }, [router]);
 
   // Auto detect special cities
@@ -139,11 +160,24 @@ export default function SolicitarCorrida() {
         console.error("Erro ao disparar push de notificação:", err)
       );
       
-      router.push(`/cliente/corrida/${data[0].id}`);
+      const rideId = data[0].id;
+      
+      // Resetar o estado local ANTES de navegar
+      // Isso evita que o Next.js faça cache da tela com o loading=true e com os dados da corrida antiga
+      setOrigem("");
+      setDestino("");
+      setReferencia("");
+      setTipoCorrida("normal");
+      setLoading(false);
+      
+      // Um pequeno delay garante que o React vai atualizar a tela e remover o loading
+      // antes do Next.js congelar o componente e navegar.
+      setTimeout(() => {
+        router.push(`/cliente/corrida/${rideId}`);
+      }, 100);
     } catch (error) {
       console.error("Erro ao solicitar:", error);
       alert("Erro ao solicitar corrida.");
-    } finally {
       setLoading(false);
     }
   };
@@ -219,7 +253,7 @@ export default function SolicitarCorrida() {
                     onChange={(e) => setDestino(e.target.value)}
                     className="w-full bg-[#F9FAFB] border border-gray-200 rounded-2xl p-4 pl-12 pr-10 outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all font-medium text-black text-sm appearance-none cursor-pointer relative z-20"
                   >
-                    <option value="" disabled>Selecione o destino especial...</option>
+                    <option value="">Selecione o destino especial...</option>
                     <option value="Guarda dos Ferreiros">Guarda dos Ferreiros</option>
                     <option value="Agrovila">Agrovila</option>
                     <option value="Coopadap">Coopadap</option>
@@ -268,14 +302,24 @@ export default function SolicitarCorrida() {
             <div className="mt-2 flex bg-gray-100 p-1.5 rounded-2xl">
               <button 
                 type="button"
-                onClick={() => setTipoCorrida("normal")}
+                onClick={() => {
+                  if (tipoCorrida !== 'normal') {
+                    setTipoCorrida("normal");
+                    setDestino("");
+                  }
+                }}
                 className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all ${tipoCorrida === 'normal' ? 'bg-white text-black shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
               >
                 Normal (R$ {tarifaBase.toFixed(2).replace('.', ',')})
               </button>
               <button 
                 type="button"
-                onClick={() => setTipoCorrida("especial")}
+                onClick={() => {
+                  if (tipoCorrida !== 'especial') {
+                    setTipoCorrida("especial");
+                    setDestino("");
+                  }
+                }}
                 className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all ${tipoCorrida === 'especial' ? 'bg-black text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
               >
                 ⚠️ Especial (Negociar)
