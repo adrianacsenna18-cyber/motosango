@@ -21,7 +21,7 @@ export default function PerfilCliente() {
   const handleLogout = () => {
     if (confirm("Deseja realmente sair do aplicativo?")) {
       localStorage.removeItem("motosango_user");
-      router.push("/cliente/login");
+      router.push("/");
     }
   };
 
