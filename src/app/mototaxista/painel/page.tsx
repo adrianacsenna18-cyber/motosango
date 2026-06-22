@@ -30,13 +30,25 @@ const AddressDisplay = ({ address }: { address: string }) => {
           .then(data => {
             if (data && data.address) {
               const { road, suburb, city, town, village } = data.address;
-              const cityName = city || town || village || '';
+              let cityName = city || town || village || '';
               
               // Montagem inteligente para embutir o complemento entre a Rua e a Cidade
               let enderecoFormatado = '';
+              let ruaLimpa = road || '';
+
+              // Tratar o bug do Nominatim onde a cidade vem colada na rua após a vírgula
+              if (ruaLimpa && ruaLimpa.includes(',')) {
+                const parts = ruaLimpa.split(',').map(p => p.trim());
+                ruaLimpa = parts[0]; // Pega apenas a rua real
+                
+                // Se a segunda parte for o nome de uma cidade (ou não tivermos cidade ainda), a recuperamos
+                if (parts[1] && !cityName) {
+                  cityName = parts[1];
+                }
+              }
               
-              if (road) {
-                enderecoFormatado += road;
+              if (ruaLimpa) {
+                enderecoFormatado += ruaLimpa;
                 if (complemento) {
                   enderecoFormatado += `, ${complemento}`;
                 }
@@ -44,7 +56,7 @@ const AddressDisplay = ({ address }: { address: string }) => {
                 enderecoFormatado += complemento;
               }
               
-              if (suburb) {
+              if (suburb && suburb !== cityName) {
                 enderecoFormatado += enderecoFormatado ? ` - ${suburb}` : suburb;
               }
               
