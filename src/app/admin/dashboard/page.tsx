@@ -53,24 +53,53 @@ export default function AdminDashboard() {
 
     const { data: settingsData } = await supabase.from("settings").select("*").limit(1);
     if (settingsData && settingsData.length > 0) {
-      setTarifaBase(settingsData[0].tarifa_base.toString());
-      if (settingsData[0].mensalidade_valor) setMensalidadeValor(settingsData[0].mensalidade_valor.toString());
-      if (settingsData[0].pix_admin) setPixAdmin(settingsData[0].pix_admin);
+      if (settingsData[0].tarifa_base !== null && settingsData[0].tarifa_base !== undefined) {
+        setTarifaBase(settingsData[0].tarifa_base.toString());
+      }
+      if (settingsData[0].mensalidade_valor !== null && settingsData[0].mensalidade_valor !== undefined) {
+        setMensalidadeValor(settingsData[0].mensalidade_valor.toString());
+      }
+      if (settingsData[0].pix_admin !== null && settingsData[0].pix_admin !== undefined) {
+        setPixAdmin(settingsData[0].pix_admin);
+      }
     }
   };
 
   const salvarConfiguracoesGlobais = async () => {
     setSalvandoTarifa(true);
-    const { error } = await supabase.from("settings").update({ 
-      tarifa_base: parseFloat(tarifaBase),
-      mensalidade_valor: parseFloat(mensalidadeValor),
-      pix_admin: pixAdmin
-    }).neq("id", "00000000-0000-0000-0000-000000000000"); // update all
-    setSalvandoTarifa(false);
-    if (error) {
-      alert("Erro ao salvar configurações.");
-    } else {
-      alert("Configurações salvas com sucesso! Todos os aplicativos foram atualizados.");
+    
+    try {
+      // Primeiro busca o ID da configuração para atualizar a linha exata
+      const { data: currentSettings } = await supabase.from("settings").select("id").limit(1);
+      
+      if (currentSettings && currentSettings.length > 0) {
+        const { error } = await supabase.from("settings").update({ 
+          tarifa_base: parseFloat(tarifaBase.toString().replace(',', '.')) || 0,
+          mensalidade_valor: parseFloat(mensalidadeValor.toString().replace(',', '.')) || 0,
+          pix_admin: pixAdmin
+        }).eq("id", currentSettings[0].id);
+
+        if (error) throw error;
+        
+        alert("Configurações salvas com sucesso! Todos os aplicativos foram atualizados.");
+      } else {
+        // Se não existir nenhuma linha, cria uma
+        const { error } = await supabase.from("settings").insert([{ 
+          tarifa_base: parseFloat(tarifaBase.toString().replace(',', '.')) || 0,
+          mensalidade_valor: parseFloat(mensalidadeValor.toString().replace(',', '.')) || 0,
+          pix_admin: pixAdmin
+        }]);
+        
+        if (error) throw error;
+        
+        alert("Configurações salvas com sucesso! Todos os aplicativos foram atualizados.");
+      }
+    } catch (error: any) {
+      console.error("ERRO SUPABASE:", error);
+      alert("Erro ao salvar configurações: " + error.message);
+    } finally {
+      setSalvandoTarifa(false);
+      fetchData(); // Recarrega os dados para garantir que a interface mostre o que está no banco
     }
   };
 
