@@ -25,14 +25,32 @@ export default function DriverLogin() {
     e.preventDefault();
     setLoading(true);
 
-    const cleanTelefone = telefone.replace(/\D/g, "");
+    let cleanTelefone = telefone.replace(/\D/g, "");
     const cleanNome = nome.trim();
+
+    // Remove o 55 inicial caso o usuário tenha digitado
+    if (cleanTelefone.startsWith("55") && cleanTelefone.length >= 12) {
+      cleanTelefone = cleanTelefone.substring(2);
+    }
+
+    if (cleanTelefone.length < 10 || cleanTelefone.length > 11) {
+      alert("Informe o telefone com DDD.");
+      setLoading(false);
+      return;
+    }
+
+    // Formata para o padrão: +55 DD NNNNN-NNNN
+    const ddd = cleanTelefone.substring(0, 2);
+    const numero = cleanTelefone.substring(2);
+    const formattedTelefone = numero.length === 9 
+      ? `+55 ${ddd} ${numero.substring(0, 5)}-${numero.substring(5)}`
+      : `+55 ${ddd} ${numero.substring(0, 4)}-${numero.substring(4)}`;
 
     try {
       const { data, error } = await supabase
         .from("drivers")
         .select("*")
-        .eq("telefone", cleanTelefone)
+        .in("telefone", [formattedTelefone, cleanTelefone, telefone])
         .ilike("nome", `%${cleanNome}%`);
 
       if (error || !data || data.length === 0) {

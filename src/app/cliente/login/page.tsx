@@ -25,26 +25,38 @@ export default function ClienteLogin() {
     e.preventDefault();
     setLoading(true);
 
-    const cleanTelefone = telefone.replace(/\D/g, "");
+    let cleanTelefone = telefone.replace(/\D/g, "");
+
+    // Remove o 55 inicial caso o usuário tenha digitado
+    if (cleanTelefone.startsWith("55") && cleanTelefone.length >= 12) {
+      cleanTelefone = cleanTelefone.substring(2);
+    }
 
     if (cleanTelefone.length < 10 || cleanTelefone.length > 11) {
-      alert("Digite um telefone válido com DDD.");
+      alert("Informe o telefone com DDD.");
       setLoading(false);
       return;
     }
 
+    // Formata para o padrão: +55 DD NNNNN-NNNN
+    const ddd = cleanTelefone.substring(0, 2);
+    const numero = cleanTelefone.substring(2);
+    const formattedTelefone = numero.length === 9 
+      ? `+55 ${ddd} ${numero.substring(0, 5)}-${numero.substring(5)}`
+      : `+55 ${ddd} ${numero.substring(0, 4)}-${numero.substring(4)}`;
+
     try {
-      // Busca se o cliente já existe
+      // Busca se o cliente já existe (suporta formato antigo sem +55 e o formato novo)
       const { data, error } = await supabase
         .from("users")
         .select("*")
-        .eq("telefone", cleanTelefone);
+        .in("telefone", [formattedTelefone, cleanTelefone, telefone]);
 
       if (!data || data.length === 0) {
-        // Se não existe, cadastra
+        // Se não existe, cadastra com o formato padronizado
         const { data: newUserArray, error: insertError } = await supabase
           .from("users")
-          .insert([{ nome, telefone: cleanTelefone }])
+          .insert([{ nome, telefone: formattedTelefone }])
           .select();
           
         if (insertError) throw insertError;

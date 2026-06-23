@@ -39,9 +39,29 @@ export default function DriverCadastro() {
     e.preventDefault();
     setLoading(true);
 
+    let cleanTelefone = formData.telefone.replace(/\D/g, "");
+
+    // Remove o 55 inicial caso o usuário tenha digitado
+    if (cleanTelefone.startsWith("55") && cleanTelefone.length >= 12) {
+      cleanTelefone = cleanTelefone.substring(2);
+    }
+
+    if (cleanTelefone.length < 10 || cleanTelefone.length > 11) {
+      alert("Informe o telefone com DDD.");
+      setLoading(false);
+      return;
+    }
+
+    // Formata para o padrão: +55 DD NNNNN-NNNN
+    const ddd = cleanTelefone.substring(0, 2);
+    const numero = cleanTelefone.substring(2);
+    const formattedTelefone = numero.length === 9 
+      ? `+55 ${ddd} ${numero.substring(0, 5)}-${numero.substring(5)}`
+      : `+55 ${ddd} ${numero.substring(0, 4)}-${numero.substring(4)}`;
+
     const dataToSubmit = {
       ...formData,
-      telefone: formData.telefone.replace(/\D/g, ""),
+      telefone: formattedTelefone,
       cpf: formData.cpf.replace(/\D/g, "")
     };
 
