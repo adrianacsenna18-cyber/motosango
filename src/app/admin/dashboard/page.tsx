@@ -352,7 +352,7 @@ export default function AdminDashboard() {
                     <td className="p-4 text-gray-400">
                       {driver.vencimento_mensalidade 
                         ? new Date(driver.vencimento_mensalidade).toLocaleDateString() 
-                        : 'Não definido'}
+                        : 'Teste grátis'}
                     </td>
                     <td className="p-4">
                       {driver.bloqueado_mensalidade ? (

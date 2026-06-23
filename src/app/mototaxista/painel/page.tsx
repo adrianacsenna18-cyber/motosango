@@ -722,7 +722,7 @@ export default function PainelMototaxista() {
             
             <p className="text-gray-400 mb-8 uppercase tracking-widest text-xs font-medium">
               Vencimento: <br/> <span className="font-bold text-white text-sm mt-1 inline-block bg-[#1A1A1A] px-3 py-1 rounded-md border border-[#333333]">
-                {driver.vencimento_mensalidade ? new Date(driver.vencimento_mensalidade).toLocaleDateString() : 'Não definido'}
+                {driver.vencimento_mensalidade ? new Date(driver.vencimento_mensalidade).toLocaleDateString() : 'Teste grátis'}
               </span>
             </p>
 
