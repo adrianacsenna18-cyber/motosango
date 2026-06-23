@@ -262,7 +262,7 @@ export default function StatusCorrida({ params }: { params: { id: string } }) {
               {(corrida.status === 'concluido' || corrida.status === 'cancelado') && (
                 <button 
                   onClick={() => router.push("/cliente/solicitar")}
-                  className="w-full py-4 bg-green-600 text-white font-black text-center rounded-xl text-lg flex items-center justify-center gap-2 shadow-lg shadow-green-200 hover:bg-green-700 transition-colors uppercase tracking-wider"
+                  className="w-full py-4 bg-primary text-black font-black text-center rounded-full text-lg shadow-[0_10px_20px_rgba(255,208,0,0.2)] hover:scale-[1.02] transition-all active:scale-[0.98] flex justify-center items-center gap-2 uppercase tracking-wide"
                 >
                   <CheckCircle2 size={24} /> VOLTAR AO INÍCIO
                 </button>
