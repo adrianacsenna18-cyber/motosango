@@ -933,9 +933,11 @@ export default function PainelMototaxista() {
               <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center text-xl">👤</div>
               <div className="flex-1">
                 <p className="font-bold text-lg text-dark">{corridaAtiva.users?.nome}</p>
-                <a href={`tel:${corridaAtiva.users?.telefone}`} className="text-blue-600 font-bold text-sm mt-0.5 inline-block">
-                  📞 {corridaAtiva.users?.telefone}
-                </a>
+                {!['cancelado', 'concluido'].includes(corridaAtiva.status?.toLowerCase() || '') && (
+                  <a href={`tel:${corridaAtiva.users?.telefone}`} className="text-blue-600 font-bold text-sm mt-0.5 inline-block">
+                    📞 {corridaAtiva.users?.telefone}
+                  </a>
+                )}
               </div>
               <div className="text-right">
                 <p className="text-xs text-gray-500 font-bold uppercase">Valor</p>
@@ -961,7 +963,7 @@ export default function PainelMototaxista() {
             </div>
 
             {/* BOTOES ROTA E WPP (FIXOS ABAIXO DO ENDERECO) */}
-            <div className="grid grid-cols-2 gap-3 mt-4">
+            <div className={`grid ${!['cancelado', 'concluido'].includes(corridaAtiva.status?.toLowerCase() || '') ? 'grid-cols-2' : 'grid-cols-1'} gap-3 mt-4`}>
               <a 
                 href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(corridaAtiva.origem.replace(/Lat:\s*|Lng:\s*|\(Comp:.*?\)/g, ''))}`} 
                 target="_blank" 
@@ -970,14 +972,14 @@ export default function PainelMototaxista() {
               >
                 📍 Abrir GPS
               </a>
-              <a 
-                href={`https://wa.me/55${corridaAtiva.users?.telefone?.replace(/\D/g, '')}`} 
-                target="_blank" 
-                rel="noreferrer"
-                className="py-3 bg-green-50 text-green-600 font-bold rounded-xl flex items-center justify-center gap-2 border border-green-100"
-              >
-                💬 WhatsApp
-              </a>
+              {!['cancelado', 'concluido'].includes(corridaAtiva.status?.toLowerCase() || '') && (
+                <a 
+                  href={`tel:${corridaAtiva.users?.telefone}`} 
+                  className="py-3 bg-green-50 text-green-600 font-bold rounded-xl flex items-center justify-center gap-2 border border-green-100"
+                >
+                  📞 Ligar para Cliente
+                </a>
+              )}
             </div>
 
             <div className="mt-6 flex flex-col gap-3">
