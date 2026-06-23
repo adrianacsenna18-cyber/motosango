@@ -937,23 +937,47 @@ export default function PainelMototaxista() {
                   📞 {corridaAtiva.users?.telefone}
                 </a>
               </div>
+              <div className="text-right">
+                <p className="text-xs text-gray-500 font-bold uppercase">Valor</p>
+                <p className="text-lg font-black text-dark">R$ {corridaAtiva.valor || '10,00'}</p>
+              </div>
             </div>
 
             <div className="space-y-4 mb-auto">
               <div className="flex gap-4 items-start">
                 <div className="w-3 h-3 rounded-full bg-green-500 mt-1.5"></div>
-                <div>
+                <div className="flex-1">
                   <p className="text-xs text-gray-500 font-medium">Origem</p>
                   <AddressDisplay address={corridaAtiva.origem} />
                 </div>
               </div>
               <div className="flex gap-4 items-start">
                 <div className="w-3 h-3 rounded-full bg-red-500 mt-1.5"></div>
-                <div>
+                <div className="flex-1">
                   <p className="text-xs text-gray-500 font-medium">Destino</p>
                   <AddressDisplay address={corridaAtiva.destino} />
                 </div>
               </div>
+            </div>
+
+            {/* BOTOES ROTA E WPP (FIXOS ABAIXO DO ENDERECO) */}
+            <div className="grid grid-cols-2 gap-3 mt-4">
+              <a 
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(corridaAtiva.origem.replace(/Lat:\s*|Lng:\s*|\(Comp:.*?\)/g, ''))}`} 
+                target="_blank" 
+                rel="noreferrer"
+                className="py-3 bg-blue-50 text-blue-600 font-bold rounded-xl flex items-center justify-center gap-2 border border-blue-100"
+              >
+                📍 Abrir GPS
+              </a>
+              <a 
+                href={`https://wa.me/55${corridaAtiva.users?.telefone?.replace(/\D/g, '')}`} 
+                target="_blank" 
+                rel="noreferrer"
+                className="py-3 bg-green-50 text-green-600 font-bold rounded-xl flex items-center justify-center gap-2 border border-green-100"
+              >
+                💬 WhatsApp
+              </a>
             </div>
 
             <div className="mt-6 flex flex-col gap-3">
