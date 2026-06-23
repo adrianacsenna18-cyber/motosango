@@ -185,8 +185,21 @@ export default function StatusCorrida({ params }: { params: { id: string } }) {
             
             {/* Ícone e Status Principal */}
             <div className="flex flex-col items-center justify-center mb-8">
-              <div className="w-24 h-24 bg-primary/20 rounded-full flex items-center justify-center mb-4 shadow-inner">
-                <span className="text-5xl">🏍️</span>
+              <div className="w-24 h-24 bg-primary rounded-full flex items-center justify-center mb-4 border-4 border-dark relative overflow-hidden animate-[pulseYellow_2s_ease-in-out_infinite]">
+                {/* Efeito de movimento contínuo (rua passando) */}
+                <div className="absolute bottom-4 w-full flex justify-center opacity-30 animate-pulse">
+                  <div className="w-16 h-0.5 bg-dark animate-[slideLeft_1s_linear_infinite]"></div>
+                </div>
+                
+                {/* Moto balançando e indo pra frente */}
+                <span className="text-5xl z-10 animate-[bounceMoto_2s_ease-in-out_infinite] filter drop-shadow-md">
+                  🏍️
+                </span>
+                
+                {/* Linhas de vento / velocidade */}
+                <div className="absolute top-8 left-2 w-4 h-0.5 bg-dark rounded-full opacity-40 animate-[wind_0.8s_linear_infinite]"></div>
+                <div className="absolute top-12 left-4 w-6 h-0.5 bg-dark rounded-full opacity-30 animate-[wind_1.2s_linear_infinite_0.3s]"></div>
+                <div className="absolute top-16 left-1 w-3 h-0.5 bg-dark rounded-full opacity-50 animate-[wind_0.9s_linear_infinite_0.1s]"></div>
               </div>
               <h2 className="text-2xl font-black text-dark text-center">
                 {corrida.status === 'aceito' ? 'Mototaxista a caminho' : 
