@@ -176,7 +176,8 @@ export default function StatusCorrida({ params }: { params: { id: string } }) {
           {/* Header */}
           <div className="bg-dark text-white p-4 flex items-center shadow-md shrink-0">
             <h1 className="font-bold mx-auto text-lg tracking-wide uppercase">
-              {corrida.status === 'concluido' ? 'Pagamento' : 'Status da Corrida'}
+              {corrida.status === 'concluido' ? 'Pagamento' : 
+               corrida.status === 'cancelado' ? 'Cancelada' : 'Status da Corrida'}
             </h1>
           </div>
 
@@ -205,10 +206,12 @@ export default function StatusCorrida({ params }: { params: { id: string } }) {
                 {corrida.status === 'aceito' ? 'Mototaxista a caminho' : 
                  corrida.status === 'a_caminho' ? 'Mototaxista chegou' : 
                  corrida.status === 'em_andamento' ? 'Indo para o destino' : 
-                 corrida.status === 'concluido' ? 'Corrida finalizada' : 'Corrida em andamento'}
+                 corrida.status === 'concluido' ? 'Corrida finalizada' : 
+                 corrida.status === 'cancelado' ? 'Corrida cancelada' : 'Corrida em andamento'}
               </h2>
               <p className="text-gray-500 text-sm mt-2 text-center">
-                {corrida.status === 'concluido' ? 'Obrigado por viajar com o MotoSango!' : 'Acompanhe as informações abaixo'}
+                {corrida.status === 'concluido' ? 'Obrigado por viajar com o MotoSango!' : 
+                 corrida.status === 'cancelado' ? 'Esta corrida foi cancelada.' : 'Acompanhe as informações abaixo'}
               </p>
             </div>
 
@@ -256,12 +259,12 @@ export default function StatusCorrida({ params }: { params: { id: string } }) {
 
             {/* Ações / Botões */}
             <div className="mt-auto pt-6">
-              {corrida.status === 'concluido' && (
+              {(corrida.status === 'concluido' || corrida.status === 'cancelado') && (
                 <button 
                   onClick={() => router.push("/cliente/solicitar")}
                   className="w-full py-4 bg-green-600 text-white font-black text-center rounded-xl text-lg flex items-center justify-center gap-2 shadow-lg shadow-green-200 hover:bg-green-700 transition-colors uppercase tracking-wider"
                 >
-                  <CheckCircle2 size={24} /> FINALIZAR
+                  <CheckCircle2 size={24} /> VOLTAR AO INÍCIO
                 </button>
               )}
               
