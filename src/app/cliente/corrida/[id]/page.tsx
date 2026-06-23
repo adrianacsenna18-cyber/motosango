@@ -85,7 +85,7 @@ export default function StatusCorrida({ params }: { params: { id: string } }) {
   const renderPixBox = () => {
     if (!isPix || corrida.pagamento_confirmado) return null;
     return (
-      <div className="bg-gray-50 p-4 rounded-xl mb-auto text-center border border-gray-200">
+      <div className="bg-white p-4 rounded-2xl mb-4 text-center border border-gray-200 shadow-sm">
         {corrida.drivers?.chave_pix ? (
           <>
             <p className="text-sm text-gray-500 mb-2">Chave PIX de {corrida.drivers?.nome}</p>
@@ -174,96 +174,93 @@ export default function StatusCorrida({ params }: { params: { id: string } }) {
       {corrida.status !== 'aguardando' && (
         <>
           {/* Header */}
-          <div className="absolute top-0 left-0 right-0 z-20 bg-dark text-white p-4 flex items-center shadow-md">
-            <h1 className="font-bold mx-auto">
-              {corrida.status === 'concluido' ? 'Pagamento' : 'Corrida em andamento'}
+          <div className="bg-dark text-white p-4 flex items-center shadow-md shrink-0">
+            <h1 className="font-bold mx-auto text-lg tracking-wide uppercase">
+              {corrida.status === 'concluido' ? 'Pagamento' : 'Status da Corrida'}
             </h1>
           </div>
 
-          {/* Map Area */}
-          <div className="h-[45vh] bg-gray-200 relative">
-            <div className="absolute inset-0 opacity-50 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+          {/* Painel Simples de Status */}
+          <div className="flex-1 flex flex-col pt-8 px-6 bg-gray-50 overflow-y-auto pb-6">
             
+            {/* Ícone e Status Principal */}
+            <div className="flex flex-col items-center justify-center mb-8">
+              <div className="w-24 h-24 bg-primary/20 rounded-full flex items-center justify-center mb-4 shadow-inner">
+                <span className="text-5xl">🏍️</span>
+              </div>
+              <h2 className="text-2xl font-black text-dark text-center">
+                {corrida.status === 'aceito' ? 'Mototaxista a caminho' : 
+                 corrida.status === 'a_caminho' ? 'Mototaxista chegou' : 
+                 corrida.status === 'em_andamento' ? 'Indo para o destino' : 
+                 corrida.status === 'concluido' ? 'Corrida finalizada' : 'Corrida em andamento'}
+              </h2>
+              <p className="text-gray-500 text-sm mt-2 text-center">
+                {corrida.status === 'concluido' ? 'Obrigado por viajar com o MotoSango!' : 'Acompanhe as informações abaixo'}
+              </p>
+            </div>
+
+            {/* Informações do Mototaxista */}
             {corrida.drivers && (
-              <div className="absolute top-20 left-4 right-4 bg-white rounded-xl p-4 shadow-lg flex items-center gap-4 z-10">
-                <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center text-2xl overflow-hidden">
+              <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-4 mb-4">
+                <div className="w-14 h-14 bg-gray-200 rounded-full flex items-center justify-center text-3xl overflow-hidden border-2 border-primary/20 shrink-0">
                   {corrida.drivers.foto_base64 ? <img src={corrida.drivers.foto_base64} alt="Motorista" className="w-full h-full object-cover" /> : '👨‍✈️'}
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-bold text-dark">{corrida.drivers.nome}</h3>
-                  <p className="text-sm text-gray-500">{corrida.drivers.modelo_moto}</p>
-                  <p className="text-xs font-bold text-gray-700">{corrida.drivers.placa}</p>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-lg text-dark truncate">{corrida.drivers.nome}</h3>
+                  <p className="text-sm text-gray-500 font-medium truncate">{corrida.drivers.modelo_moto}</p>
+                  <p className="text-xs font-black text-gray-700 bg-gray-100 inline-block px-2 py-1 rounded mt-1">{corrida.drivers.placa}</p>
                 </div>
-                <div className="flex items-center gap-1 text-primary font-bold">
-                  <span>★</span> 4,9
+                <div className="flex flex-col items-center justify-center bg-yellow-50 px-3 py-2 rounded-xl border border-yellow-100 shrink-0">
+                  <span className="text-yellow-500 text-lg">★</span>
+                  <span className="font-bold text-dark text-sm">4,9</span>
                 </div>
               </div>
             )}
-            
-            {/* Fake Route */}
-            <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
-              <path d="M 50 200 Q 150 100 250 250 T 350 150" fill="none" stroke="#FBBF24" strokeWidth="6" strokeLinecap="round" className="drop-shadow-md"/>
-              <circle cx="50" cy="200" r="8" fill="#10B981" />
-              <circle cx="350" cy="150" r="8" fill="#1F2937" />
-            </svg>
-          </div>
 
-          {/* Bottom Card */}
-          <div className="flex-1 bg-white rounded-t-3xl -mt-6 z-20 relative p-6 shadow-[0_-10px_20px_rgba(0,0,0,0.05)] flex flex-col">
-            
-            {corrida.status !== 'concluido' ? (
-              <>
-                <div className="mb-6">
-                  <p className="text-sm text-gray-500 font-medium">Status</p>
-                  <h2 className="text-xl font-bold text-dark mt-1">
-                    {corrida.status === 'aceito' ? 'Mototaxista a caminho' : 'Indo para o destino'}
-                  </h2>
-                  <p className="text-sm text-green-600 font-medium mt-1">Chega em 2 min</p>
-                </div>
+            {/* Valor e Pagamento */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-4 flex flex-col gap-2">
+              <div className="flex justify-between items-center">
+                <p className="text-sm text-gray-500 font-medium">Valor da corrida</p>
+                <p className="text-2xl font-black text-dark">R$ {corrida.valor || '10,00'}</p>
+              </div>
+              <div className="w-full h-px bg-gray-100 my-1"></div>
+              <div className="flex justify-between items-center">
+                <p className="text-sm text-gray-500 font-medium">Forma de pagamento</p>
+                <p className="text-sm text-primary font-black uppercase tracking-wider">{corrida.forma_pagamento || 'A COMBINAR'}</p>
+              </div>
+            </div>
 
-                <div className="bg-gray-50 p-4 rounded-xl mb-4">
-                  <p className="text-sm text-gray-500 font-medium mb-1">Pagamento</p>
-                  <p className="text-2xl font-bold text-dark">R$ {corrida.valor || '10,00'}</p>
-                  <p className="text-sm text-gray-600 mt-1 uppercase font-bold">{corrida.forma_pagamento || 'PIX ou Dinheiro'}</p>
-                </div>
+            {/* Caixa do PIX ou Dinheiro */}
+            {renderPixBox()}
 
-                {renderPixBox()}
+            {isDinheiro && corrida.status === 'concluido' && (
+              <div className="bg-white p-4 rounded-2xl mb-4 text-center border border-gray-200 shadow-sm">
+                <p className="text-sm text-gray-600 font-medium">
+                  💵 Pagamento será realizado em dinheiro diretamente ao mototaxista.
+                </p>
+              </div>
+            )}
 
-                {(corrida.status === 'aguardando' || corrida.status === 'aceito') && (
-                  <button 
-                    onClick={cancelarCorrida}
-                    className="w-full py-4 mt-6 bg-gray-100 text-dark font-bold text-center rounded-xl text-lg"
-                  >
-                    CANCELAR CORRIDA
-                  </button>
-                )}
-              </>
-            ) : (
-              <>
-                <div className="text-center mb-6">
-                  <p className="text-sm text-gray-500 font-medium">Total da corrida</p>
-                  <h2 className="text-4xl font-bold text-dark mt-2">R$ {corrida.valor || '10,00'}</h2>
-                  <p className="text-sm text-gray-600 mt-2 uppercase font-bold">Pagamento via {corrida.forma_pagamento}</p>
-                </div>
-
-                {renderPixBox()}
-
-                {isDinheiro && (
-                  <div className="bg-gray-50 p-4 rounded-xl mb-6 text-center border border-gray-200">
-                    <p className="text-sm text-gray-600 font-medium">
-                      💵 Pagamento será realizado em dinheiro diretamente ao mototaxista.
-                    </p>
-                  </div>
-                )}
-
+            {/* Ações / Botões */}
+            <div className="mt-auto pt-6">
+              {corrida.status === 'concluido' && (
                 <button 
                   onClick={() => router.push("/cliente/solicitar")}
-                  className="w-full py-4 mt-auto bg-green-600 text-white font-bold text-center rounded-xl text-lg flex items-center justify-center gap-2 shadow-lg shadow-green-200 hover:bg-green-700 transition-colors"
+                  className="w-full py-4 bg-green-600 text-white font-black text-center rounded-xl text-lg flex items-center justify-center gap-2 shadow-lg shadow-green-200 hover:bg-green-700 transition-colors uppercase tracking-wider"
                 >
-                  <CheckCircle2 size={24} /> FINALIZAR CORRIDA
+                  <CheckCircle2 size={24} /> FINALIZAR
                 </button>
-              </>
-            )}
+              )}
+              
+              {(corrida.status === 'aguardando' || corrida.status === 'aceito') && (
+                <button 
+                  onClick={cancelarCorrida}
+                  className="w-full py-4 bg-white border-2 border-gray-200 text-gray-600 font-bold text-center rounded-xl text-lg hover:bg-gray-50 transition-colors"
+                >
+                  CANCELAR CORRIDA
+                </button>
+              )}
+            </div>
           </div>
         </>
       )}
