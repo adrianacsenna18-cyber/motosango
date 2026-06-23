@@ -18,6 +18,42 @@ export default function SolicitarCorrida() {
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [tarifaBase, setTarifaBase] = useState(10.00);
+  
+  const [regras, setRegras] = useState({
+    regra_noite: false,
+    regra_sabado: false,
+    regra_domingo: false,
+    regra_feriado_nacional: false,
+    regra_feriado_local: false
+  });
+
+  const isRuleActive = () => {
+    const now = new Date();
+    const hour = now.getHours();
+    const day = now.getDay(); // 0 = Domingo, 6 = Sábado
+    
+    if (regras.regra_noite && (hour >= 22 || hour < 6)) return true;
+    if (regras.regra_sabado && day === 6) return true;
+    if (regras.regra_domingo && day === 0) return true;
+    if (regras.regra_feriado_local) return true;
+    
+    if (regras.regra_feriado_nacional) {
+      const d = now.getDate();
+      const m = now.getMonth() + 1;
+      const isHoliday = 
+        (d===1 && m===1) || // Confraternização Universal
+        (d===21 && m===4) || // Tiradentes
+        (d===1 && m===5) || // Dia do Trabalho
+        (d===7 && m===9) || // Independência
+        (d===12 && m===10) || // Nossa Sra Aparecida
+        (d===2 && m===11) || // Finados
+        (d===15 && m===11) || // Proclamação da República
+        (d===25 && m===12); // Natal
+      if (isHoliday) return true;
+    }
+    
+    return false;
+  };
 
   // FAILSAFE: Se o usuário interagir com o formulário, garantimos que loading seja falso
   useEffect(() => {
@@ -44,9 +80,16 @@ export default function SolicitarCorrida() {
     
     // Fetch global config
     const fetchSettings = async () => {
-      const { data } = await supabase.from("settings").select("tarifa_base").limit(1);
+      const { data } = await supabase.from("settings").select("*").limit(1);
       if (data && data.length > 0) {
         setTarifaBase(Number(data[0].tarifa_base));
+        setRegras({
+          regra_noite: !!data[0].regra_noite,
+          regra_sabado: !!data[0].regra_sabado,
+          regra_domingo: !!data[0].regra_domingo,
+          regra_feriado_nacional: !!data[0].regra_feriado_nacional,
+          regra_feriado_local: !!data[0].regra_feriado_local
+        });
       }
     };
     fetchSettings();
@@ -156,6 +199,17 @@ export default function SolicitarCorrida() {
 
     const origemCompleta = complemento.trim() !== "" ? `${origem} (Comp: ${complemento.trim()})` : origem;
 
+    let finalTipoCorrida = tipoCorrida;
+    let finalValor = tipoCorrida === 'normal' ? tarifaBase : null;
+    let finalNegociacao = tipoCorrida === 'especial' ? 'nenhuma' : 'nenhuma';
+
+    // Se a corrida for local (UI em 'normal') mas houver regra ativa (noite/fds/feriado), 
+    // força para o fluxo de negociação (especial)
+    if (tipoCorrida === 'normal' && isRuleActive()) {
+      finalTipoCorrida = 'especial';
+      finalValor = null;
+    }
+
     try {
       const { data, error } = await supabase
         .from("rides")
@@ -164,11 +218,11 @@ export default function SolicitarCorrida() {
           origem: origemCompleta,
           destino,
           referencia,
-          tipo_corrida: tipoCorrida,
+          tipo_corrida: finalTipoCorrida,
           forma_pagamento: formaPagamento,
           status: 'aguardando',
-          status_negociacao: tipoCorrida === 'especial' ? 'nenhuma' : 'nenhuma',
-          valor: tipoCorrida === 'normal' ? tarifaBase : null
+          status_negociacao: finalNegociacao,
+          valor: finalValor
         }])
         .select();
 
@@ -340,7 +394,7 @@ export default function SolicitarCorrida() {
                 }}
                 className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all ${tipoCorrida === 'normal' ? 'bg-white text-black shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
               >
-                Normal (R$ {tarifaBase.toFixed(2).replace('.', ',')})
+                Normal ({isRuleActive() ? 'A combinar' : `R$ ${tarifaBase.toFixed(2).replace('.', ',')}`})
               </button>
               <button 
                 type="button"
@@ -355,6 +409,12 @@ export default function SolicitarCorrida() {
                 ⚠️ Especial (Negociar)
               </button>
             </div>
+            
+            {tipoCorrida === 'normal' && isRuleActive() && (
+              <p className="text-xs text-orange-700 font-medium px-4 py-3 bg-orange-50 rounded-xl border border-orange-100 text-center leading-relaxed">
+                🕒 Devido ao horário ou feriado, o valor desta corrida será combinado diretamente com o mototaxista.
+              </p>
+            )}
             
             {tipoCorrida === 'especial' && (
               <p className="text-xs text-orange-700 font-medium px-4 py-3 bg-orange-50 rounded-xl border border-orange-100 text-center leading-relaxed">

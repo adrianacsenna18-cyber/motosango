@@ -18,6 +18,13 @@ export default function AdminDashboard() {
   const [mensalidadeValor, setMensalidadeValor] = useState("50.00");
   const [pixAdmin, setPixAdmin] = useState("");
   const [filtroCorrida, setFiltroCorrida] = useState("todas");
+  
+  // Novas regras de preços
+  const [regraNoite, setRegraNoite] = useState(false);
+  const [regraSabado, setRegraSabado] = useState(false);
+  const [regraDomingo, setRegraDomingo] = useState(false);
+  const [regraFeriadoNacional, setRegraFeriadoNacional] = useState(false);
+  const [regraFeriadoLocal, setRegraFeriadoLocal] = useState(false);
 
   const mockChartData = [
     { name: 'Seg', corridas: 120 },
@@ -62,6 +69,11 @@ export default function AdminDashboard() {
       if (settingsData[0].pix_admin !== null && settingsData[0].pix_admin !== undefined) {
         setPixAdmin(settingsData[0].pix_admin);
       }
+      if (settingsData[0].regra_noite !== undefined) setRegraNoite(settingsData[0].regra_noite);
+      if (settingsData[0].regra_sabado !== undefined) setRegraSabado(settingsData[0].regra_sabado);
+      if (settingsData[0].regra_domingo !== undefined) setRegraDomingo(settingsData[0].regra_domingo);
+      if (settingsData[0].regra_feriado_nacional !== undefined) setRegraFeriadoNacional(settingsData[0].regra_feriado_nacional);
+      if (settingsData[0].regra_feriado_local !== undefined) setRegraFeriadoLocal(settingsData[0].regra_feriado_local);
     }
   };
 
@@ -76,7 +88,12 @@ export default function AdminDashboard() {
         const { error } = await supabase.from("settings").update({ 
           tarifa_base: parseFloat(tarifaBase.toString().replace(',', '.')) || 0,
           mensalidade_valor: parseFloat(mensalidadeValor.toString().replace(',', '.')) || 0,
-          pix_admin: pixAdmin
+          pix_admin: pixAdmin,
+          regra_noite: regraNoite,
+          regra_sabado: regraSabado,
+          regra_domingo: regraDomingo,
+          regra_feriado_nacional: regraFeriadoNacional,
+          regra_feriado_local: regraFeriadoLocal
         }).eq("id", currentSettings[0].id);
 
         if (error) throw error;
@@ -87,7 +104,12 @@ export default function AdminDashboard() {
         const { error } = await supabase.from("settings").insert([{ 
           tarifa_base: parseFloat(tarifaBase.toString().replace(',', '.')) || 0,
           mensalidade_valor: parseFloat(mensalidadeValor.toString().replace(',', '.')) || 0,
-          pix_admin: pixAdmin
+          pix_admin: pixAdmin,
+          regra_noite: regraNoite,
+          regra_sabado: regraSabado,
+          regra_domingo: regraDomingo,
+          regra_feriado_nacional: regraFeriadoNacional,
+          regra_feriado_local: regraFeriadoLocal
         }]);
         
         if (error) throw error;
@@ -546,7 +568,76 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-[#222]">
+              <div className="pt-8 mt-8 border-t border-gray-200">
+                <h4 className="text-lg font-bold mb-4 text-gray-800">Regras de Preço Dinâmico (Corridas Especiais)</h4>
+                <p className="text-sm text-gray-500 mb-6">
+                  Ative estas regras para forçar as corridas locais a serem negociadas diretamente com o mototaxista.
+                </p>
+                
+                <div className="space-y-4 mb-8">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <div className="relative">
+                      <input type="checkbox" className="sr-only" checked={regraNoite} onChange={(e) => setRegraNoite(e.target.checked)} />
+                      <div className={`block w-14 h-8 rounded-full transition-colors ${regraNoite ? 'bg-primary' : 'bg-gray-300'}`}></div>
+                      <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${regraNoite ? 'transform translate-x-6' : ''}`}></div>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-bold text-gray-800">Após as 22:00</span>
+                      <span className="text-xs text-gray-500">Exige negociação de preço entre 22:00 e 06:00.</span>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <div className="relative">
+                      <input type="checkbox" className="sr-only" checked={regraSabado} onChange={(e) => setRegraSabado(e.target.checked)} />
+                      <div className={`block w-14 h-8 rounded-full transition-colors ${regraSabado ? 'bg-primary' : 'bg-gray-300'}`}></div>
+                      <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${regraSabado ? 'transform translate-x-6' : ''}`}></div>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-bold text-gray-800">Sábados</span>
+                      <span className="text-xs text-gray-500">Exige negociação de preço aos Sábados.</span>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <div className="relative">
+                      <input type="checkbox" className="sr-only" checked={regraDomingo} onChange={(e) => setRegraDomingo(e.target.checked)} />
+                      <div className={`block w-14 h-8 rounded-full transition-colors ${regraDomingo ? 'bg-primary' : 'bg-gray-300'}`}></div>
+                      <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${regraDomingo ? 'transform translate-x-6' : ''}`}></div>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-bold text-gray-800">Domingos</span>
+                      <span className="text-xs text-gray-500">Exige negociação de preço aos Domingos.</span>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <div className="relative">
+                      <input type="checkbox" className="sr-only" checked={regraFeriadoNacional} onChange={(e) => setRegraFeriadoNacional(e.target.checked)} />
+                      <div className={`block w-14 h-8 rounded-full transition-colors ${regraFeriadoNacional ? 'bg-primary' : 'bg-gray-300'}`}></div>
+                      <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${regraFeriadoNacional ? 'transform translate-x-6' : ''}`}></div>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-bold text-gray-800">Feriados Nacionais</span>
+                      <span className="text-xs text-gray-500">Exige negociação de preço em datas comemorativas nacionais.</span>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <div className="relative">
+                      <input type="checkbox" className="sr-only" checked={regraFeriadoLocal} onChange={(e) => setRegraFeriadoLocal(e.target.checked)} />
+                      <div className={`block w-14 h-8 rounded-full transition-colors ${regraFeriadoLocal ? 'bg-primary' : 'bg-gray-300'}`}></div>
+                      <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${regraFeriadoLocal ? 'transform translate-x-6' : ''}`}></div>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-bold text-gray-800">Feriado Local Hoje</span>
+                      <span className="text-xs text-gray-500">Ative manualmente esta chave no dia de um feriado municipal.</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-gray-200">
                 <button 
                   onClick={salvarConfiguracoesGlobais}
                   disabled={salvandoTarifa}
