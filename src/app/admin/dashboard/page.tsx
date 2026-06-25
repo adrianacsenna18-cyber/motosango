@@ -11,6 +11,7 @@ export default function AdminDashboard() {
   const [admin, setAdmin] = useState<any>(null);
   const [drivers, setDrivers] = useState<any[]>([]);
   const [rides, setRides] = useState<any[]>([]);
+  const [clientesCount, setClientesCount] = useState<number>(0);
   const [tab, setTab] = useState("dashboard");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [tarifaBase, setTarifaBase] = useState("10.00");
@@ -57,6 +58,9 @@ export default function AdminDashboard() {
 
     const { data: ridesData } = await supabase.from("rides").select("*, users(nome), drivers(nome)").order("created_at", { ascending: false });
     if (ridesData) setRides(ridesData);
+
+    const { count: countUsers } = await supabase.from("users").select("*", { count: 'exact', head: true });
+    if (countUsers !== null) setClientesCount(countUsers);
 
     const { data: settingsData } = await supabase.from("settings").select("*").limit(1);
     if (settingsData && settingsData.length > 0) {
@@ -257,7 +261,7 @@ export default function AdminDashboard() {
         {tab === "dashboard" && (
             <div className="max-w-6xl mx-auto space-y-6">
               {/* Top Stats Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
                 <div className="bg-[#111111] p-6 rounded-3xl shadow-sm border border-[#222] hover:border-[#FFD000] transition-colors">
                   <p className="text-gray-400 text-sm font-medium mb-1">Corridas Hoje</p>
                   <p className="text-3xl md:text-4xl font-bold text-[#FFD000]">{rides.length}</p>
@@ -276,6 +280,11 @@ export default function AdminDashboard() {
                   <p className="text-gray-400 text-sm font-medium mb-1">Mototaxistas Online</p>
                   <p className="text-3xl md:text-4xl font-bold text-[#FFD000]">{drivers.filter(d => d.status_online).length}</p>
                   <p className="text-xs text-blue-400 font-bold mt-2">De {drivers.length} cadastrados</p>
+                </div>
+                <div className="bg-[#111111] p-6 rounded-3xl shadow-sm border border-[#222] hover:border-[#FFD000] transition-colors">
+                  <p className="text-gray-400 text-sm font-medium mb-1">Clientes App</p>
+                  <p className="text-3xl md:text-4xl font-bold text-[#FFD000]">{clientesCount}</p>
+                  <p className="text-xs text-gray-500 font-bold mt-2">Clientes cadastrados</p>
                 </div>
               </div>
 
