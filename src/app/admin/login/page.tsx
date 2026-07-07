@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { supabase } from "@/lib/supabase";
 
 export default function AdminLogin() {
   const router = useRouter();
@@ -27,19 +26,23 @@ export default function AdminLogin() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase
-        .from("admin")
-        .select("*")
-        .eq("login", login)
-        .eq("senha", senha);
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ login, senha }),
+      });
 
-      if (error || !data || data.length === 0) {
-        alert("Credenciais incorretas.");
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        alert(data.error || "Credenciais incorretas.");
         setLoading(false);
         return;
       }
 
-      localStorage.setItem("motosango_admin", JSON.stringify(data[0]));
+      localStorage.setItem("motosango_admin", JSON.stringify(data.user));
       router.push("/admin/dashboard");
     } catch (error) {
       console.error("Erro no login admin:", error);
