@@ -85,43 +85,32 @@ export default function AdminDashboard() {
     setSalvandoTarifa(true);
     
     try {
-      // Primeiro busca o ID da configuração para atualizar a linha exata
-      const { data: currentSettings } = await supabase.from("settings").select("id").limit(1);
-      
-      if (currentSettings && currentSettings.length > 0) {
-        const { error } = await supabase.from("settings").update({ 
-          tarifa_base: parseFloat(tarifaBase.toString().replace(',', '.')) || 0,
-          mensalidade_valor: parseFloat(mensalidadeValor.toString().replace(',', '.')) || 0,
-          pix_admin: pixAdmin,
-          regra_noite: regraNoite,
-          regra_sabado: regraSabado,
-          regra_domingo: regraDomingo,
-          regra_feriado_nacional: regraFeriadoNacional,
-          regra_feriado_local: regraFeriadoLocal
-        }).eq("id", currentSettings[0].id);
+      const payload = {
+        tarifa_base: parseFloat(tarifaBase.toString().replace(',', '.')) || 0,
+        mensalidade_valor: parseFloat(mensalidadeValor.toString().replace(',', '.')) || 0,
+        pix_admin: pixAdmin,
+        regra_noite: regraNoite,
+        regra_sabado: regraSabado,
+        regra_domingo: regraDomingo,
+        regra_feriado_nacional: regraFeriadoNacional,
+        regra_feriado_local: regraFeriadoLocal
+      };
 
-        if (error) throw error;
-        
-        alert("Configurações salvas com sucesso! Todos os aplicativos foram atualizados.");
-      } else {
-        // Se não existir nenhuma linha, cria uma
-        const { error } = await supabase.from("settings").insert([{ 
-          tarifa_base: parseFloat(tarifaBase.toString().replace(',', '.')) || 0,
-          mensalidade_valor: parseFloat(mensalidadeValor.toString().replace(',', '.')) || 0,
-          pix_admin: pixAdmin,
-          regra_noite: regraNoite,
-          regra_sabado: regraSabado,
-          regra_domingo: regraDomingo,
-          regra_feriado_nacional: regraFeriadoNacional,
-          regra_feriado_local: regraFeriadoLocal
-        }]);
-        
-        if (error) throw error;
-        
-        alert("Configurações salvas com sucesso! Todos os aplicativos foram atualizados.");
+      const res = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Erro desconhecido na API");
       }
+
+      alert("Configurações salvas com sucesso! Todos os aplicativos foram atualizados.");
     } catch (error: any) {
-      console.error("ERRO SUPABASE:", error);
+      console.error("ERRO:", error);
       alert("Erro ao salvar configurações: " + error.message);
     } finally {
       setSalvandoTarifa(false);
