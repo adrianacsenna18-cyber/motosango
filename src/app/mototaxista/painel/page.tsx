@@ -562,6 +562,34 @@ export default function PainelMototaxista() {
       alert("Erro ao atualizar status. Tente novamente.");
       // Reverter se der erro
       setCorridaAtiva(currentRide);
+      return;
+    }
+
+    if (novoStatus === "concluido") {
+      try {
+        const response = await fetch("/api/financeiro/ride-summary", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            ride_id: currentRide.id,
+          }),
+        });
+
+        if (!response.ok) {
+          const data = await response.json().catch(() => null);
+          console.error(
+            "Erro ao criar resumo financeiro da corrida concluída:",
+            data?.error || `HTTP ${response.status}`,
+          );
+        }
+      } catch (financialError) {
+        console.error(
+          "Erro ao chamar rota financeira após conclusão da corrida:",
+          financialError,
+        );
+      }
     }
   };
 
