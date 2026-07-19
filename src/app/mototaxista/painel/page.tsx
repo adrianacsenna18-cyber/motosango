@@ -145,12 +145,88 @@ export default function PainelMototaxista() {
   
   // Referência persistente para o áudio
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUnlockedRef = useRef(false);
+  const audioUnlockInProgressRef = useRef(false);
+  const novaCorridaRef = useRef<any>(null);
   
   // Inicializa o áudio apenas no cliente
   useEffect(() => {
     audioRef.current = new Audio('/beep.mp3');
     audioRef.current.loop = true;
   }, []);
+
+  const stopRideAlertAudio = () => {
+    if (!audioRef.current) return;
+
+    audioRef.current.pause();
+    audioRef.current.currentTime = 0;
+    audioRef.current.loop = true;
+    audioRef.current.muted = false;
+    audioRef.current.volume = 1;
+  };
+
+  const playRideAlertAudio = async (context: string) => {
+    if (!audioRef.current) return;
+
+    if (!audioUnlockedRef.current) {
+      console.warn(`[AUDIO] Som interno aguardando interação real do mototaxista (${context}).`);
+      return;
+    }
+
+    try {
+      audioRef.current.currentTime = 0;
+      audioRef.current.loop = true;
+      audioRef.current.muted = false;
+      audioRef.current.volume = 1;
+
+      const playPromise = audioRef.current.play();
+      if (playPromise !== undefined) {
+        await playPromise;
+      }
+    } catch (error) {
+      console.error(`[AUDIO] Falha ao reproduzir som interno (${context}):`, error);
+    }
+  };
+
+  const unlockAudioFromUserGesture = async (context: string) => {
+    if (!audioRef.current || audioUnlockedRef.current || audioUnlockInProgressRef.current) {
+      return;
+    }
+
+    audioUnlockInProgressRef.current = true;
+    let shouldStartRideAlert = false;
+
+    try {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current.loop = false;
+      audioRef.current.muted = true;
+      audioRef.current.volume = 0;
+
+      const playPromise = audioRef.current.play();
+      if (playPromise !== undefined) {
+        await playPromise;
+      }
+
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current.loop = true;
+      audioRef.current.muted = false;
+      audioRef.current.volume = 1;
+      audioUnlockedRef.current = true;
+      shouldStartRideAlert = Boolean(novaCorridaRef.current && !corridaAtivaRef.current);
+      console.info(`[AUDIO] Som interno liberado por interação real (${context}).`);
+    } catch (error) {
+      console.error(`[AUDIO] Falha ao liberar áudio após interação real (${context}):`, error);
+    } finally {
+      stopRideAlertAudio();
+      audioUnlockInProgressRef.current = false;
+    }
+
+    if (shouldStartRideAlert) {
+      await playRideAlertAudio(`corrida pendente após liberação (${context})`);
+    }
+  };
 
   // Use refs to avoid stale closures in realtime subscriptions
   const isOnlineRef = useRef(isOnline);
@@ -165,7 +241,26 @@ export default function PainelMototaxista() {
   useEffect(() => {
     isOnlineRef.current = isOnline;
     corridaAtivaRef.current = corridaAtiva;
-  }, [isOnline, corridaAtiva]);
+    novaCorridaRef.current = novaCorrida;
+  }, [isOnline, corridaAtiva, novaCorrida]);
+
+  useEffect(() => {
+    const handleUserInteraction = () => {
+      void unlockAudioFromUserGesture('interação na tela');
+    };
+
+    window.addEventListener('pointerdown', handleUserInteraction, { passive: true });
+    window.addEventListener('touchstart', handleUserInteraction, { passive: true });
+    window.addEventListener('keydown', handleUserInteraction);
+    window.addEventListener('click', handleUserInteraction);
+
+    return () => {
+      window.removeEventListener('pointerdown', handleUserInteraction);
+      window.removeEventListener('touchstart', handleUserInteraction);
+      window.removeEventListener('keydown', handleUserInteraction);
+      window.removeEventListener('click', handleUserInteraction);
+    };
+  }, []);
 
   // Efeito de Timeout da Nova Corrida (25 segundos)
   useEffect(() => {
@@ -188,18 +283,7 @@ export default function PainelMototaxista() {
     let vibrateInterval: any = null;
 
     if (novaCorrida && !corridaAtiva) {
-      if (audioRef.current) {
-        try {
-          audioRef.current.currentTime = 0;
-          audioRef.current.loop = true;
-          const playPromise = audioRef.current.play();
-          if (playPromise !== undefined) {
-            playPromise.catch(e => console.log('Audio autoplay prevented:', e));
-          }
-        } catch (e) {
-          console.log('Audio error:', e);
-        }
-      }
+      void playRideAlertAudio('nova corrida recebida');
 
       if ('vibrate' in navigator) {
         vibrateInterval = setInterval(() => {
@@ -207,17 +291,11 @@ export default function PainelMototaxista() {
         }, 2000);
       }
     } else {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-      }
+      stopRideAlertAudio();
     }
 
     return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-      }
+      stopRideAlertAudio();
       if (vibrateInterval) {
         clearInterval(vibrateInterval);
       }
@@ -409,31 +487,6 @@ export default function PainelMototaxista() {
 
     const newState = !isOnline;
     setIsOnline(newState);
-
-    // Tocar bip audível no clique para desbloquear áudio no iOS
-    if (newState && audioRef.current) {
-      try {
-        audioRef.current.volume = 0.5; // Volume moderado
-        const unlockPromise = audioRef.current.play();
-        if (unlockPromise !== undefined) {
-          unlockPromise.then(() => {
-            console.log("[AUDIO] Bip de confirmação Online tocando");
-            // Deixa tocar por 500ms e depois pausa
-            setTimeout(() => {
-              if (audioRef.current) {
-                audioRef.current.pause();
-                audioRef.current.currentTime = 0;
-                audioRef.current.volume = 1.0; // Restaura volume para quando a corrida chegar
-              }
-            }, 500);
-          }).catch((err) => {
-            console.error("[AUDIO] iPhone ainda bloqueou o áudio:", err);
-          });
-        }
-      } catch (err) {
-        console.error("[AUDIO] Falha ao preparar áudio:", err);
-      }
-    }
     
     if (newState) {
       // Quando fica online, não precisamos chamar checkCorridasPendentes aqui
@@ -441,10 +494,7 @@ export default function PainelMototaxista() {
       // alert("Ficou online! Aguardando corridas...");
     } else {
       setNovaCorrida(null);
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-      }
+      stopRideAlertAudio();
     }
     
     if (driver) {
