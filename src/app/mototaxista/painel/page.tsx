@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { MotoBottomNav } from "@/components/layout/MotoBottomNav";
 import { Navigation, CheckCircle2, XCircle, Copy, Bell } from "lucide-react";
+import {
+  clearMotoLegacyStorage,
+  fetchMotoSession,
+  syncMotoLegacyStorage,
+} from "@/lib/moto-session-client";
 
 const AddressDisplay = ({ address }: { address: string }) => {
   const [readable, setReadable] = useState<string>('');
@@ -158,6 +163,7 @@ export default function PainelMototaxista() {
   
   // Ref para guardar corridas recusadas localmente nesta sessão (evita que voltem antes do Supabase sincronizar)
   const localRejectedRidesRef = useRef<Set<string>>(new Set());
+  const driverIdRef = useRef<string | null>(null);
   
   // Ref para a função de recusa, evitando dependências no useEffect e stale closures
   const recusarCorridaRef = useRef<any>(null);
@@ -225,6 +231,12 @@ export default function PainelMototaxista() {
   }, [novaCorrida, corridaAtiva]);
 
   const checkCorridasPendentes = async () => {
+    const currentDriverId = driverIdRef.current;
+
+    if (!currentDriverId) {
+      return;
+    }
+
     // Apenas puxar corridas aguardando das últimas 12 horas
     const hoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
     
@@ -239,8 +251,11 @@ export default function PainelMototaxista() {
       // Filtrar no client se ele já rejeitou (o array no PG pode ser null)
       const corridaValida = data.find(c => {
         if (localRejectedRidesRef.current.has(c.id)) return false;
-        const hasRejected = c.rejected_by && c.rejected_by.includes(driver?.id);
-        const isReservedToAnother = c.motorista_id && c.motorista_id !== driver?.id && c.status_negociacao === 'sugerido';
+        const hasRejected = c.rejected_by && c.rejected_by.includes(currentDriverId);
+        const isReservedToAnother =
+          c.motorista_id &&
+          c.motorista_id !== currentDriverId &&
+          c.status_negociacao === 'sugerido';
         return !hasRejected && !isReservedToAnother;
       });
       
@@ -266,95 +281,11 @@ export default function PainelMototaxista() {
   }, [isOnline]);
 
   useEffect(() => {
-    const driverData = localStorage.getItem("motosango_driver");
-    if (!driverData) {
-      router.push("/mototaxista/login");
-      return;
-    }
-    
-    const parsedDriver = JSON.parse(driverData);
-    setDriver(parsedDriver);
+    let ridesSub: any = null;
+    let ridesUpdateSub: any = null;
+    let driverUpdateSub: any = null;
+    let isMounted = true;
 
-    // ANDROID E IPHONE: Restaura o último status conhecido do LocalStorage (mantém ONLINE ao trocar de telas)
-    // Nenhuma plataforma deve ser forçada a offline automaticamente ao recarregar a tela.
-    setIsOnline(parsedDriver.status_online === true);
-    
-    checkCorridaAtiva(parsedDriver.id);
-    fetchConfig();
-
-    // Subscribe to new rides
-    const ridesSub = supabase
-      .channel('public:rides')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'rides' },
-        (payload) => {
-          if (payload.new.status === 'aguardando' && isOnlineRef.current && !corridaAtivaRef.current) {
-            // Se eu já recusei esta corrida nesta sessão localmente, ignora o evento
-            if (localRejectedRidesRef.current.has(payload.new.id)) return;
-            
-            // Verificar se foi eu que rejeitei (provavelmente não pois é insert, mas por garantia)
-            setNovaCorrida(payload.new);
-            setValorProposto("");
-            setIsNegociando(false);
-          }
-        }
-      )
-      .subscribe();
-
-    // Listen for updates (e.g. status_negociacao recusado or corrida canceled)
-    const ridesUpdateSub = supabase
-      .channel('public:rides:update')
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'rides' },
-        (payload) => {
-          const updatedRide = payload.new;
-          
-          // Se a corrida ativa atual for atualizada (ex: cliente cancelou)
-          if (corridaAtivaRef.current && corridaAtivaRef.current.id === updatedRide.id) {
-            if (updatedRide.status === 'cancelado' || updatedRide.status === 'concluido' || updatedRide.status === 'recusado') {
-              setCorridaAtiva(null);
-              checkCorridasPendentes();
-            } else {
-              setCorridaAtiva((prev: any) => ({ ...prev, ...updatedRide }));
-            }
-          } else if (!corridaAtivaRef.current && updatedRide.motorista_id === parsedDriver.id && (updatedRide.status === 'aceito' || updatedRide.status === 'a_caminho' || updatedRide.status === 'em_andamento')) {
-            // Cliente acabou de aceitar a corrida especial ou houve atualização que ativou a corrida para nós
-            checkCorridaAtiva(parsedDriver.id);
-          } else if (corridaAtivaRef.current && corridaAtivaRef.current.id === updatedRide.id && corridaAtivaRef.current.status !== updatedRide.status) {
-             // Sincronizar com qualquer atualização externa do mesmo id, caso necessário.
-             setCorridaAtiva((prev: any) => ({ ...prev, ...updatedRide }));
-          }
-          
-          if (isOnlineRef.current && !corridaAtivaRef.current) {
-            checkCorridasPendentes(); // Re-evaluate if we should show something
-          }
-        }
-      )
-      .subscribe();
-
-    // Listen for driver updates (e.g. admin blocking)
-    const driverUpdateSub = supabase
-      .channel('public:drivers:update')
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'drivers', filter: `id=eq.${parsedDriver.id}` },
-        (payload) => {
-          const updatedDriver = payload.new;
-          setDriver((prev: any) => ({ ...prev, ...updatedDriver }));
-          localStorage.setItem("motosango_driver", JSON.stringify(updatedDriver));
-          
-          if (updatedDriver.bloqueado_mensalidade && isOnlineRef.current) {
-            setIsOnline(false);
-            setNovaCorrida(null);
-            alert("Sua conta foi bloqueada pelo administrador (Mensalidade). Você está offline.");
-          }
-        }
-      )
-      .subscribe();
-
-    // Listener para Visibility Change (App acordando do background)
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         console.log("[PAINEL] App voltou ao foco, verificando corridas pendentes");
@@ -363,12 +294,127 @@ export default function PainelMototaxista() {
         }
       }
     };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    const loadDriverSession = async () => {
+      const sessionDriver = await fetchMotoSession();
+
+      if (!sessionDriver) {
+        clearMotoLegacyStorage();
+        router.push("/mototaxista/login");
+        return;
+      }
+
+      if (!isMounted) {
+        return;
+      }
+
+      driverIdRef.current = sessionDriver.id;
+      syncMotoLegacyStorage(sessionDriver);
+      setDriver(sessionDriver);
+
+      // ANDROID E IPHONE: Restaura o último status conhecido do LocalStorage (mantém ONLINE ao trocar de telas)
+      // Nenhuma plataforma deve ser forçada a offline automaticamente ao recarregar a tela.
+      setIsOnline(sessionDriver.status_online === true);
+
+      await Promise.all([checkCorridaAtiva(sessionDriver.id), fetchConfig()]);
+
+      ridesSub = supabase
+        .channel('public:rides')
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'rides' },
+          (payload) => {
+            if (payload.new.status === 'aguardando' && isOnlineRef.current && !corridaAtivaRef.current) {
+              // Se eu já recusei esta corrida nesta sessão localmente, ignora o evento
+              if (localRejectedRidesRef.current.has(payload.new.id)) return;
+
+              // Verificar se foi eu que rejeitei (provavelmente não pois é insert, mas por garantia)
+              setNovaCorrida(payload.new);
+              setValorProposto("");
+              setIsNegociando(false);
+            }
+          }
+        )
+        .subscribe();
+
+      ridesUpdateSub = supabase
+        .channel('public:rides:update')
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'rides' },
+          (payload) => {
+            const updatedRide = payload.new;
+
+            if (corridaAtivaRef.current && corridaAtivaRef.current.id === updatedRide.id) {
+              if (updatedRide.status === 'cancelado' || updatedRide.status === 'concluido' || updatedRide.status === 'recusado') {
+                setCorridaAtiva(null);
+                checkCorridasPendentes();
+              } else {
+                setCorridaAtiva((prev: any) => ({ ...prev, ...updatedRide }));
+              }
+            } else if (
+              !corridaAtivaRef.current &&
+              updatedRide.motorista_id === sessionDriver.id &&
+              (updatedRide.status === 'aceito' || updatedRide.status === 'a_caminho' || updatedRide.status === 'em_andamento')
+            ) {
+              checkCorridaAtiva(sessionDriver.id);
+            } else if (
+              corridaAtivaRef.current &&
+              corridaAtivaRef.current.id === updatedRide.id &&
+              corridaAtivaRef.current.status !== updatedRide.status
+            ) {
+              setCorridaAtiva((prev: any) => ({ ...prev, ...updatedRide }));
+            }
+
+            if (isOnlineRef.current && !corridaAtivaRef.current) {
+              checkCorridasPendentes();
+            }
+          }
+        )
+        .subscribe();
+
+      driverUpdateSub = supabase
+        .channel('public:drivers:update')
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'drivers', filter: `id=eq.${sessionDriver.id}` },
+          (payload) => {
+            const updatedDriver = payload.new;
+            setDriver((prev: any) => {
+              const mergedDriver = { ...prev, ...updatedDriver };
+              syncMotoLegacyStorage(mergedDriver);
+              return mergedDriver;
+            });
+
+            if (updatedDriver.bloqueado_mensalidade && isOnlineRef.current) {
+              setIsOnline(false);
+              setNovaCorrida(null);
+              alert("Sua conta foi bloqueada pelo administrador (Mensalidade). Você está offline.");
+            }
+          }
+        )
+        .subscribe();
+
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+    };
+
+    loadDriverSession().catch(() => {
+      clearMotoLegacyStorage();
+      router.push("/mototaxista/login");
+    });
 
     return () => {
-      supabase.removeChannel(ridesSub);
-      supabase.removeChannel(ridesUpdateSub);
-      supabase.removeChannel(driverUpdateSub);
+      isMounted = false;
+      driverIdRef.current = null;
+      if (ridesSub) {
+        supabase.removeChannel(ridesSub);
+      }
+      if (ridesUpdateSub) {
+        supabase.removeChannel(ridesUpdateSub);
+      }
+      if (driverUpdateSub) {
+        supabase.removeChannel(driverUpdateSub);
+      }
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       clearTimeout(window.currentTimeout);
     };
@@ -455,7 +501,7 @@ export default function PainelMototaxista() {
         
       const updatedDriver = { ...driver, status_online: newState };
       setDriver(updatedDriver);
-      localStorage.setItem("motosango_driver", JSON.stringify(updatedDriver));
+      syncMotoLegacyStorage(updatedDriver);
     }
   };
 
@@ -562,6 +608,34 @@ export default function PainelMototaxista() {
       alert("Erro ao atualizar status. Tente novamente.");
       // Reverter se der erro
       setCorridaAtiva(currentRide);
+      return;
+    }
+
+    if (novoStatus === 'concluido') {
+      try {
+        const response = await fetch("/api/financeiro/ride-summary", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            ride_id: currentRide.id,
+          }),
+        });
+
+        if (!response.ok) {
+          const data = await response.json().catch(() => null);
+          console.error(
+            "Erro ao criar resumo financeiro da corrida concluída:",
+            data?.error || `HTTP ${response.status}`
+          );
+        }
+      } catch (financialError) {
+        console.error(
+          "Erro ao chamar rota financeira após conclusão da corrida:",
+          financialError
+        );
+      }
     }
   };
 
@@ -578,7 +652,6 @@ export default function PainelMototaxista() {
   };
 
   const ativarNotificacoesPush = async () => {
-    alert("1 - Clique no sino iniciou");
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
       alert("Seu navegador não suporta notificações em segundo plano.");
       return;
@@ -587,7 +660,6 @@ export default function PainelMototaxista() {
     try {
       setPushStatus('saving');
       const permission = await Notification.requestPermission();
-      alert("2 - Permissão: " + permission);
       
       if (permission !== 'granted') {
         setPushStatus('');
@@ -596,13 +668,10 @@ export default function PainelMototaxista() {
       }
 
       const registration = await navigator.serviceWorker.register('/sw.js');
-      alert("3 - Service Worker registrado");
       
       await navigator.serviceWorker.ready;
-      alert("4 - Service Worker ready");
       
       const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-      alert("5 - VAPID existe: " + (vapidPublicKey ? "sim" : "não"));
       
       if (!vapidPublicKey) {
         console.error("VAPID Key ausente");
@@ -610,22 +679,17 @@ export default function PainelMototaxista() {
         return;
       }
 
-      alert("6 - Verificando inscrição antiga...");
       let subscription = await registration.pushManager.getSubscription();
       
       if (subscription) {
-        alert("Inscrição existente encontrada, cancelando a antiga para forçar renovação");
         await subscription.unsubscribe();
       }
       
-      alert("Criando nova inscrição com a chave VAPID atual");
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
       });
-      alert("7 - PushSubscription atualizada/criada");
 
-      alert("8 - Antes do fetch");
       const response = await fetch('/api/push/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -635,16 +699,12 @@ export default function PainelMototaxista() {
         })
       });
 
-      alert("9 - Status API: " + response.status);
-
       if (response.ok) {
         setPushStatus('saved');
-        alert("10 - Salvo com sucesso");
       } else {
         setPushStatus('error');
       }
     } catch (error: any) {
-      alert("ERRO: " + (error.message || error));
       console.error("Erro ao ativar push:", error);
       setPushStatus('error');
     }
@@ -654,7 +714,7 @@ export default function PainelMototaxista() {
     await supabase.from("drivers").update({ pagamento_em_analise: true }).eq("id", driver.id);
     const updatedDriver = { ...driver, pagamento_em_analise: true };
     setDriver(updatedDriver);
-    localStorage.setItem("motosango_driver", JSON.stringify(updatedDriver));
+    syncMotoLegacyStorage(updatedDriver);
     alert("Administrador notificado! Aguarde a liberação.");
   };
 
