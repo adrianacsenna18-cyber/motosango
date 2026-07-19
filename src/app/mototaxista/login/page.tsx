@@ -2,11 +2,7 @@
 export const dynamic = 'force-dynamic';
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import {
-  clearMotoLegacyStorage,
-  fetchMotoSession,
-  syncMotoLegacyStorage,
-} from "@/lib/moto-session-client";
+import { supabase } from "@/lib/supabase";
 
 export default function DriverLogin() {
   const router = useRouter();
@@ -16,25 +12,13 @@ export default function DriverLogin() {
   const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const sessionDriver = await fetchMotoSession();
-
-        if (sessionDriver) {
-          syncMotoLegacyStorage(sessionDriver);
-          router.push("/mototaxista/painel");
-          return;
-        }
-
-        clearMotoLegacyStorage();
-      } catch {
-        clearMotoLegacyStorage();
-      } finally {
-        setCheckingAuth(false);
-      }
-    };
-
-    checkSession();
+    // Verifica se já existe um mototaxista logado
+    const savedDriver = localStorage.getItem("motosango_driver");
+    if (savedDriver) {
+      router.push("/mototaxista/painel");
+    } else {
+      setCheckingAuth(false);
+    }
   }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -55,35 +39,45 @@ export default function DriverLogin() {
       return;
     }
 
+    // Formata para o padrão: +55 DD NNNNN-NNNN
+    const ddd = cleanTelefone.substring(0, 2);
+    const numero = cleanTelefone.substring(2);
+    const formattedTelefone = numero.length === 9 
+      ? `+55 ${ddd} ${numero.substring(0, 5)}-${numero.substring(5)}`
+      : `+55 ${ddd} ${numero.substring(0, 4)}-${numero.substring(4)}`;
+
     try {
-      const response = await fetch("/api/mototaxista/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          nome: cleanNome,
-          telefone,
-        }),
-      });
+      const { data, error } = await supabase
+        .from("drivers")
+        .select("*")
+        .in("telefone", [formattedTelefone, cleanTelefone, telefone])
+        .ilike("nome", `%${cleanNome}%`);
 
-      const data = await response.json();
-
-      if (!response.ok || !data.success || !data.driver) {
-        throw new Error(data.error || "Erro ao acessar. Tente novamente.");
+      if (error || !data || data.length === 0) {
+        alert("Credenciais incorretas ou mototaxista não encontrado. Verifique se os dados estão corretos.");
+        setLoading(false);
+        return;
       }
 
-      syncMotoLegacyStorage(data.driver);
+      const driver = data[0];
+
+      if (!driver.aprovado_admin) {
+        alert("Seu cadastro ainda está aguardando aprovação do administrador.");
+        setLoading(false);
+        return;
+      }
+
+      localStorage.setItem("motosango_driver", JSON.stringify(driver));
       router.push("/mototaxista/painel");
-    } catch (error: any) {
+    } catch (error) {
       console.error("Erro no login:", error);
-      alert(error.message || "Erro ao acessar. Tente novamente.");
+      alert("Erro ao acessar. Tente novamente.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Enquanto valida a sessão, mostra uma tela vazia preta para não piscar o formulário
+  // Enquanto verifica o localStorage, mostra uma tela vazia preta para não piscar o formulário
   if (checkingAuth) {
     return <div className="min-h-screen bg-black"></div>;
   }
