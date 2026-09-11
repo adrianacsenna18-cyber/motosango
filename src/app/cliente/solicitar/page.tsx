@@ -3,6 +3,11 @@
 import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import {
+  clearClienteLegacyStorage,
+  fetchClienteSession,
+  syncClienteLegacyStorage,
+} from "@/lib/cliente-session-client";
 
 import { ClienteBottomNav } from "@/components/layout/ClienteBottomNav";
 
@@ -18,6 +23,8 @@ export default function SolicitarCorrida() {
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [tarifaBase, setTarifaBase] = useState(10.00);
+  const [origemLat, setOrigemLat] = useState<number | null>(null);
+  const [origemLng, setOrigemLng] = useState<number | null>(null);
   
   const [regras, setRegras] = useState({
     regra_noite: false,
@@ -71,15 +78,18 @@ export default function SolicitarCorrida() {
   }, [pathname]);
 
   useEffect(() => {
-    const userData = localStorage.getItem("motosango_user");
-    if (!userData) {
-      router.push("/cliente/login");
-    } else {
-      setUser(JSON.parse(userData));
-    }
-    
-    // Fetch global config
-    const fetchSettings = async () => {
+    const loadPageData = async () => {
+      const sessionUser = await fetchClienteSession();
+
+      if (!sessionUser) {
+        clearClienteLegacyStorage();
+        router.push("/cliente/login");
+        return;
+      }
+
+      syncClienteLegacyStorage(sessionUser);
+      setUser(sessionUser);
+
       const { data } = await supabase.from("settings").select("*").limit(1);
       if (data && data.length > 0) {
         setTarifaBase(Number(data[0].tarifa_base));
@@ -92,7 +102,10 @@ export default function SolicitarCorrida() {
         });
       }
     };
-    fetchSettings();
+    loadPageData().catch(() => {
+      clearClienteLegacyStorage();
+      router.push("/cliente/login");
+    });
 
     // Garantir que o estado de loading e formulário não fiquem travados 
     // ao voltar de uma corrida finalizada (Next.js bfcache)
@@ -174,6 +187,8 @@ export default function SolicitarCorrida() {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
+          setOrigemLat(position.coords.latitude);
+          setOrigemLng(position.coords.longitude);
           setOrigem(`Lat: ${position.coords.latitude}, Lng: ${position.coords.longitude}`);
         },
         (error) => {
@@ -222,7 +237,11 @@ export default function SolicitarCorrida() {
           forma_pagamento: formaPagamento,
           status: 'aguardando',
           status_negociacao: finalNegociacao,
-          valor: finalValor
+          valor: finalValor,
+          origem_lat: origemLat && Number.isFinite(origemLat) ? origemLat : null,
+          origem_lng: origemLng && Number.isFinite(origemLng) ? origemLng : null,
+          destino_lat: null,
+          destino_lng: null
         }])
         .select();
 
@@ -242,6 +261,8 @@ export default function SolicitarCorrida() {
       setDestino("");
       setReferencia("");
       setTipoCorrida("normal");
+      setOrigemLat(null);
+      setOrigemLng(null);
       setLoading(false);
       
       // Um pequeno delay garante que o React vai atualizar a tela e remover o loading

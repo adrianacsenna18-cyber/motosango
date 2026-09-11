@@ -1,31 +1,56 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { ClienteBottomNav } from "@/components/layout/ClienteBottomNav";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import {
+  clearClienteLegacyStorage,
+  fetchClienteSession,
+  syncClienteLegacyStorage,
+} from "@/lib/cliente-session-client";
 
 export default function HistoricoCliente() {
+  const router = useRouter();
   const [corridas, setCorridas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchCorridas = async () => {
-      const userData = localStorage.getItem("motosango_user");
-      if (userData) {
-        const user = JSON.parse(userData);
-        const { data } = await supabase
-          .from("rides")
-          .select("*")
-          .eq("cliente_id", user.id)
-          .order("created_at", { ascending: false });
-        if (data) setCorridas(data);
+      const sessionUser = await fetchClienteSession();
+
+      if (!sessionUser) {
+        clearClienteLegacyStorage();
+        router.push("/cliente/login");
+        return;
       }
+
+      syncClienteLegacyStorage(sessionUser);
+
+      const { data } = await supabase
+        .from("rides")
+        .select("*")
+        .eq("cliente_id", sessionUser.id)
+        .order("created_at", { ascending: false });
+
+      if (data) {
+        setCorridas(data);
+      }
+
       setLoading(false);
     };
-    fetchCorridas();
-  }, []);
+
+    fetchCorridas()
+      .catch(() => {
+        clearClienteLegacyStorage();
+        router.push("/cliente/login");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [router]);
 
   return (
     <div className="flex flex-col min-h-screen bg-black pb-20">

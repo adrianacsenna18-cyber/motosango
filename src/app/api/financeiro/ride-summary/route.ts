@@ -49,10 +49,10 @@ function getInitialSummaryValues(paymentMethod: "pix" | "dinheiro", rawGrossAmou
     platformCommissionAmount,
     economicNetAmount,
     paymentStatus: "pix_pending" as const,
-    settlementStatus: "not_applicable" as const,
+    settlementStatus: "platform_owes_driver" as const,
     driverDirectReceiptAmount: 0,
     driverOwesPlatformAmount: 0,
-    platformOwesDriverAmount: 0,
+    platformOwesDriverAmount: economicNetAmount,
   };
 }
 

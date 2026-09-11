@@ -1,4 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "Área do Cliente | MotoSango - Mototáxi São Gotardo MG",
+  description:
+    "Área do cliente MotoSango. Acesse sua conta para pedir corrida de mototáxi, consultar histórico de corridas e gerenciar seu perfil em São Gotardo MG.",
+  alternates: { canonical: "/cliente" },
+};
 
 export default function ClienteHome() {
   return (

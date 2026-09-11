@@ -38,6 +38,7 @@ export function clearMotoLegacyStorage() {
 export async function fetchMotoSession() {
   const response = await fetch("/api/mototaxista/session", {
     method: "GET",
+    credentials: "include",
     cache: "no-store",
   });
 

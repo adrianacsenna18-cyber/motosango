@@ -1,32 +1,55 @@
 "use client";
 export const dynamic = 'force-dynamic';
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { MotoBottomNav } from "@/components/layout/MotoBottomNav";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import {
+  clearMotoLegacyStorage,
+  fetchMotoSession,
+  syncMotoLegacyStorage,
+} from "@/lib/moto-session-client";
 
 export default function HistoricoMoto() {
+  const router = useRouter();
   const [corridas, setCorridas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtroAtual, setFiltroAtual] = useState<"todas" | "concluido" | "cancelado">("todas");
 
   useEffect(() => {
     const fetchCorridas = async () => {
-      const driverData = localStorage.getItem("motosango_driver");
-      if (driverData) {
-        const driver = JSON.parse(driverData);
-        const { data } = await supabase
-          .from("rides")
-          .select("*")
-          .eq("motorista_id", driver.id)
-          .order("created_at", { ascending: false });
-        if (data) setCorridas(data);
+      const sessionDriver = await fetchMotoSession();
+
+      if (!sessionDriver) {
+        clearMotoLegacyStorage();
+        router.push("/mototaxista/login");
+        return;
       }
-      setLoading(false);
+
+      syncMotoLegacyStorage(sessionDriver);
+
+      const { data } = await supabase
+        .from("rides")
+        .select("*")
+        .eq("motorista_id", sessionDriver.id)
+        .order("created_at", { ascending: false });
+
+      if (data) {
+        setCorridas(data);
+      }
     };
-    fetchCorridas();
-  }, []);
+
+    fetchCorridas()
+      .catch(() => {
+        clearMotoLegacyStorage();
+        router.push("/mototaxista/login");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [router]);
 
   const corridasFiltradas = corridas.filter((corrida) => {
     if (filtroAtual === "todas") return true;

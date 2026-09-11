@@ -12,7 +12,6 @@ export default function AdminLogin() {
   const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
-    // Verifica se já existe um admin logado
     const savedAdmin = localStorage.getItem("motosango_admin");
     if (savedAdmin) {
       router.push("/admin/dashboard");
@@ -32,6 +31,7 @@ export default function AdminLogin() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ login, senha }),
+        credentials: "include",
       });
 
       const data = await res.json();
@@ -52,7 +52,6 @@ export default function AdminLogin() {
     }
   };
 
-  // Enquanto verifica o localStorage, mostra uma tela vazia preta para não piscar o formulário
   if (checkingAuth) {
     return <div className="min-h-screen bg-black"></div>;
   }

@@ -1,22 +1,10 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { NextResponse } from "next/server";
 
-// Create Supabase client using service role key
-const getSupabase = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://jeulwmhsiftstikszoku.supabase.co';
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'sb_publishable_QUb7JP_TwRgxJ9JlMoZMBg_yl-zBvgz';
-
-  return createClient(supabaseUrl, supabaseServiceKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  });
-};
+import { getAdminSupabaseClient } from "@/lib/admin-supabase";
 
 export async function GET() {
   try {
-    const supabase = getSupabase();
+    const supabase = getAdminSupabaseClient();
     const { data, error } = await supabase.from("settings").select("*").limit(1);
 
     if (error) {
@@ -28,14 +16,14 @@ export async function GET() {
     console.error("Erro ao ler settings:", error.message || error);
     return NextResponse.json(
       { error: "Erro interno ao ler configurações: " + (error.message || "Desconhecido") },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const supabase = getSupabase();
+    const supabase = getAdminSupabaseClient();
     const body = await request.json();
 
     const {
@@ -49,7 +37,6 @@ export async function POST(request: Request) {
       regra_feriado_local
     } = body;
 
-    // Primeiro busca o ID da configuração
     const { data: currentSettings } = await supabase.from("settings").select("id").limit(1);
 
     const payload = {
@@ -61,7 +48,7 @@ export async function POST(request: Request) {
       regra_domingo,
       regra_feriado_nacional,
       regra_feriado_local,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     };
 
     let resultError;
@@ -88,7 +75,7 @@ export async function POST(request: Request) {
     console.error("Erro ao salvar settings:", error.message || error);
     return NextResponse.json(
       { error: "Erro interno ao salvar configurações: " + (error.message || "Desconhecido") },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

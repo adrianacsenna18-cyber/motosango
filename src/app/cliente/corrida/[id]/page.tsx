@@ -4,6 +4,11 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { MapPin, Navigation, Phone, Copy, CheckCircle2 } from "lucide-react";
+import {
+  clearClienteLegacyStorage,
+  fetchClienteSession,
+  syncClienteLegacyStorage,
+} from "@/lib/cliente-session-client";
 
 export default function StatusCorrida({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -12,6 +17,16 @@ export default function StatusCorrida({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     const fetchCorrida = async () => {
+      const sessionUser = await fetchClienteSession();
+
+      if (!sessionUser) {
+        clearClienteLegacyStorage();
+        router.push("/cliente/login");
+        return;
+      }
+
+      syncClienteLegacyStorage(sessionUser);
+
       const { data, error } = await supabase
         .from("rides")
         .select("*, drivers(*)")
@@ -23,7 +38,11 @@ export default function StatusCorrida({ params }: { params: { id: string } }) {
       setLoading(false);
     };
 
-    fetchCorrida();
+    fetchCorrida().catch(() => {
+      clearClienteLegacyStorage();
+      setLoading(false);
+      router.push("/cliente/login");
+    });
 
     // Subscribe to realtime updates
     const subscription = supabase
@@ -56,7 +75,7 @@ export default function StatusCorrida({ params }: { params: { id: string } }) {
     return () => {
       supabase.removeChannel(subscription);
     };
-  }, [params.id]);
+  }, [params.id, router]);
 
   const cancelarCorrida = async () => {
     if (!confirm("Deseja realmente cancelar esta corrida?")) return;

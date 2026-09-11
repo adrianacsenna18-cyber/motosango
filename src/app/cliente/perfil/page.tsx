@@ -4,23 +4,43 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ClienteBottomNav } from "@/components/layout/ClienteBottomNav";
 import { LogOut, User, Phone } from "lucide-react";
+import {
+  clearClienteLegacyStorage,
+  fetchClienteSession,
+  syncClienteLegacyStorage,
+} from "@/lib/cliente-session-client";
 
 export default function PerfilCliente() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    const userData = localStorage.getItem("motosango_user");
-    if (!userData) {
+    const loadSession = async () => {
+      const sessionUser = await fetchClienteSession();
+
+      if (!sessionUser) {
+        clearClienteLegacyStorage();
+        router.push("/cliente/login");
+        return;
+      }
+
+      syncClienteLegacyStorage(sessionUser);
+      setUser(sessionUser);
+    };
+
+    loadSession().catch(() => {
+      clearClienteLegacyStorage();
       router.push("/cliente/login");
-      return;
-    }
-    setUser(JSON.parse(userData));
+    });
   }, [router]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (confirm("Deseja realmente sair do aplicativo?")) {
-      localStorage.removeItem("motosango_user");
+      await fetch("/api/cliente/logout", {
+        method: "POST",
+      }).catch(() => null);
+
+      clearClienteLegacyStorage();
       router.push("/");
     }
   };

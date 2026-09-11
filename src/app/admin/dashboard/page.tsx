@@ -188,6 +188,12 @@ export default function AdminDashboard() {
             🚖 Corridas
           </button>
           <button 
+            onClick={() => router.push("/admin/financeiro")}
+            className="w-full text-left px-4 py-3 rounded-lg transition-colors hover:bg-[#111111]"
+          >
+            💸 Financeiro
+          </button>
+          <button 
             onClick={() => setTab("configuracoes")}
             className={`w-full text-left px-4 py-3 rounded-lg transition-colors ${tab === 'configuracoes' ? 'bg-[#FFD000] text-black font-bold' : 'hover:bg-[#111111]'}`}
           >
@@ -196,8 +202,11 @@ export default function AdminDashboard() {
         </nav>
         <div className="p-4 border-t border-[#222]">
           <button 
-            onClick={() => {
+            onClick={async () => {
               if (confirm("Deseja realmente sair do painel administrador?")) {
+                try {
+                  await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
+                } catch {}
                 localStorage.removeItem("motosango_admin");
                 router.push("/");
               }
@@ -216,13 +225,21 @@ export default function AdminDashboard() {
           <img src="/logo.png" alt="MotoSango Admin" className="h-6 object-contain" />
           <select 
             value={tab} 
-            onChange={(e) => setTab(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value;
+              if (value === "financeiro") {
+                router.push("/admin/financeiro");
+              } else {
+                setTab(value);
+              }
+            }}
             className="bg-[#1A1A1A] text-white text-sm rounded-xl px-3 py-2 outline-none border border-[#333]"
           >
             <option value="dashboard">📊 Dashboard</option>
             <option value="motoristas">🏍️ Mototaxistas</option>
             <option value="mensalidades">💰 Mensalidades</option>
             <option value="corridas">🚖 Corridas</option>
+            <option value="financeiro">💸 Financeiro</option>
             <option value="configuracoes">⚙️ Configurações</option>
           </select>
         </div>
@@ -233,8 +250,11 @@ export default function AdminDashboard() {
             <span className="text-sm text-gray-400">Olá, Admin</span>
             <div className="w-10 h-10 bg-[#1A1A1A] rounded-full flex items-center justify-center text-xl shadow-sm border-2 border-[#FFD000]">👤</div>
             <button 
-              onClick={() => {
+              onClick={async () => {
                 if (confirm("Deseja realmente sair do painel administrador?")) {
+                  try {
+                    await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
+                  } catch {}
                   localStorage.removeItem("motosango_admin");
                   router.push("/");
                 }

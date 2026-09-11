@@ -1,4 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "Área do Mototaxista | MotoSango - São Gotardo MG",
+  description:
+    "Área do mototaxista MotoSango em São Gotardo MG. Acesse seu painel, histórico, ganhos, perfil e comece a receber corridas através da Fila Inteligente.",
+  alternates: { canonical: "/mototaxista" },
+};
 
 export default function MototaxistaHome() {
   return (

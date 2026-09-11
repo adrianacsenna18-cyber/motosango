@@ -9,7 +9,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        primary: "#FFD000", // Amarelo oficial MotoSango
+        primary: "#FFC400", // Amarelo oficial MotoSango
         dark: "#000000", // Preto absoluto oficial
       },
       animation: {
@@ -17,7 +17,7 @@ const config: Config = {
         'wind': 'wind 1s linear infinite',
         'slideLeft': 'slideLeft 1s linear infinite',
         'fade-in': 'fadeIn 0.5s ease-in-out',
-        'pulseYellow': 'pulseYellow 2s ease-in-out infinite',
+        'pulseYellow': 'pulseYellow 3s ease-in-out infinite',
       },
       keyframes: {
         bounceMoto: {
@@ -35,8 +35,8 @@ const config: Config = {
           '100%': { transform: 'translateX(-40px)' },
         },
         pulseYellow: {
-          '0%, 100%': { boxShadow: '0 0 15px rgba(255, 208, 0, 0.4)' },
-          '50%': { boxShadow: '0 0 30px rgba(255, 208, 0, 0.8)' },
+          '0%, 100%': { boxShadow: '0 0 8px rgba(255, 196, 0, 0.22), 0 0 0 0 rgba(255, 196, 0, 0.0)' },
+          '50%': { boxShadow: '0 0 18px rgba(255, 196, 0, 0.38), 0 0 0 6px rgba(255, 196, 0, 0.04)' },
         },
       },
     },

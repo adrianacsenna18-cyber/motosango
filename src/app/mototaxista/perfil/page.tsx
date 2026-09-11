@@ -4,23 +4,43 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MotoBottomNav } from "@/components/layout/MotoBottomNav";
 import { LogOut, User, Bike, CreditCard, ShieldCheck } from "lucide-react";
+import {
+  clearMotoLegacyStorage,
+  fetchMotoSession,
+  syncMotoLegacyStorage,
+} from "@/lib/moto-session-client";
 
 export default function PerfilMototaxista() {
   const router = useRouter();
   const [driver, setDriver] = useState<any>(null);
 
   useEffect(() => {
-    const driverData = localStorage.getItem("motosango_driver");
-    if (!driverData) {
+    const loadSession = async () => {
+      const sessionDriver = await fetchMotoSession();
+
+      if (!sessionDriver) {
+        clearMotoLegacyStorage();
+        router.push("/mototaxista/login");
+        return;
+      }
+
+      syncMotoLegacyStorage(sessionDriver);
+      setDriver(sessionDriver);
+    };
+
+    loadSession().catch(() => {
+      clearMotoLegacyStorage();
       router.push("/mototaxista/login");
-      return;
-    }
-    setDriver(JSON.parse(driverData));
+    });
   }, [router]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (confirm("Deseja realmente sair do aplicativo?")) {
-      localStorage.removeItem("motosango_driver");
+      await fetch("/api/mototaxista/logout", {
+        method: "POST",
+      }).catch(() => null);
+
+      clearMotoLegacyStorage();
       router.push("/");
     }
   };

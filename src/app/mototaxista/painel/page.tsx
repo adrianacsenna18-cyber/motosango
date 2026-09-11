@@ -142,12 +142,14 @@ export default function PainelMototaxista() {
   const [showMensalidade, setShowMensalidade] = useState(false);
   const [configMensalidade, setConfigMensalidade] = useState<any>({ valor: 50.00, pix: '' });
   const [pushStatus, setPushStatus] = useState<string>(''); // '' | 'saving' | 'saved' | 'error'
+  const [ofertaFoiAberta, setOfertaFoiAberta] = useState(false);
   
   // Referência persistente para o áudio
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUnlockedRef = useRef(false);
   const audioUnlockInProgressRef = useRef(false);
   const novaCorridaRef = useRef<any>(null);
+  const timeoutAberturaRef = useRef<any>(null);
   
   // Inicializa o áudio apenas no cliente
   useEffect(() => {
@@ -228,6 +230,11 @@ export default function PainelMototaxista() {
     }
   };
 
+  const marcarOfertaComoAberta = () => {
+    clearTimeout(timeoutAberturaRef.current);
+    if (!ofertaFoiAberta) setOfertaFoiAberta(true);
+  };
+
   // Use refs to avoid stale closures in realtime subscriptions
   const isOnlineRef = useRef(isOnline);
   const corridaAtivaRef = useRef(corridaAtiva);
@@ -237,6 +244,107 @@ export default function PainelMototaxista() {
   
   // Ref para a função de recusa, evitando dependências no useEffect e stale closures
   const recusarCorridaRef = useRef<any>(null);
+
+  const watchPositionRef = useRef<number | null>(null);
+  const lastLocationSentAtRef = useRef<number>(0);
+  const gpsAllowedRef = useRef<boolean>(false);
+  const [gpsWarning, setGpsWarning] = useState<string | null>(null);
+
+  const sendLocationToServer = async (lat: number, lng: number) => {
+    if (!driver?.id) return;
+    const now = Date.now();
+    if (now - lastLocationSentAtRef.current < 10000) return;
+    lastLocationSentAtRef.current = now;
+    try {
+      await supabase
+        .from("drivers")
+        .update({
+          lat: lat,
+          lng: lng,
+          last_location_update: new Date().toISOString(),
+        })
+        .eq("id", driver.id);
+    } catch (e) {
+      console.error("[GPS] Erro ao enviar localização:", e);
+    }
+  };
+
+  const startGpsWatch = () => {
+    if (typeof window === "undefined") return;
+    if (!("geolocation" in navigator)) {
+      console.warn("[GPS] Navegador não suporta geolocalização.");
+      return;
+    }
+    if (watchPositionRef.current !== null) return;
+    try {
+      watchPositionRef.current = navigator.geolocation.watchPosition(
+        (position) => {
+          if (!position?.coords) return;
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            gpsAllowedRef.current = true;
+            if (gpsWarning) setGpsWarning(null);
+            void sendLocationToServer(lat, lng);
+          }
+        },
+        (err) => {
+          console.warn("[GPS] watchPosition erro:", err?.code, err?.message);
+          if (err?.code === 1) {
+            gpsAllowedRef.current = false;
+            setGpsWarning("Localização desativada. Ative o GPS para aparecer nas corridas.");
+            stopGpsWatch();
+          } else if (err?.code === 2) {
+            setGpsWarning("Não foi possível obter sua localização no momento.");
+          }
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 5000,
+          timeout: 15000,
+        }
+      );
+    } catch (err) {
+      console.error("[GPS] Falha ao iniciar watchPosition:", err);
+    }
+  };
+
+  const stopGpsWatch = () => {
+    if (typeof window === "undefined") return;
+    if (watchPositionRef.current !== null && "geolocation" in navigator) {
+      try {
+        navigator.geolocation.clearWatch(watchPositionRef.current);
+      } catch (e) {
+        console.warn("[GPS] clearWatch erro:", e);
+      }
+      watchPositionRef.current = null;
+    }
+  };
+
+  const requestGpsPermission = async () => {
+    if (typeof window === "undefined" || !("geolocation" in navigator)) return;
+    try {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          if (position?.coords) {
+            gpsAllowedRef.current = true;
+            setGpsWarning(null);
+            void sendLocationToServer(position.coords.latitude, position.coords.longitude);
+            if (!watchPositionRef.current) startGpsWatch();
+          }
+        },
+        (err) => {
+          if (err?.code === 1) {
+            gpsAllowedRef.current = false;
+            setGpsWarning("Permissão de localização negada. Ative nas configurações do navegador.");
+          }
+        },
+        { enableHighAccuracy: true, timeout: 15000 }
+      );
+    } catch (err) {
+      console.error("[GPS] requestGpsPermission erro:", err);
+    }
+  };
 
   useEffect(() => {
     isOnlineRef.current = isOnline;
@@ -262,9 +370,54 @@ export default function PainelMototaxista() {
     };
   }, []);
 
+  useEffect(() => {
+    setOfertaFoiAberta(false);
+  }, [novaCorrida?.id]);
+
+  useEffect(() => {
+    if (novaCorrida && !corridaAtiva && !ofertaFoiAberta) {
+      clearTimeout(timeoutAberturaRef.current);
+      const id = novaCorrida.id;
+
+      timeoutAberturaRef.current = setTimeout(() => {
+        localRejectedRidesRef.current.add(id);
+        setNovaCorrida(null);
+        setIsNegociando(false);
+
+        const marcarIgnorado = async () => {
+          if (!driver?.id) {
+            checkCorridasPendentes();
+            return;
+          }
+          try {
+            const { data } = await supabase
+              .from("rides")
+              .select("rejected_by")
+              .eq("id", id)
+              .single();
+            const current = data?.rejected_by || [];
+            if (!current.includes(driver.id)) {
+              await supabase
+                .from("rides")
+                .update({ rejected_by: [...current, driver.id] })
+                .eq("id", id);
+            }
+          } catch (e) {
+            console.error("[35s] Erro ao marcar ignorado:", e);
+          } finally {
+            checkCorridasPendentes();
+          }
+        };
+        marcarIgnorado();
+      }, 35000);
+    }
+
+    return () => clearTimeout(timeoutAberturaRef.current);
+  }, [novaCorrida, corridaAtiva, ofertaFoiAberta, driver]);
+
   // Efeito de Timeout da Nova Corrida (25 segundos)
   useEffect(() => {
-    if (novaCorrida && !corridaAtiva && (novaCorrida.status_negociacao === 'nenhuma' || novaCorrida.status_negociacao === 'recusado')) {
+    if (ofertaFoiAberta && novaCorrida && !corridaAtiva && (novaCorrida.status_negociacao === 'nenhuma' || novaCorrida.status_negociacao === 'recusado')) {
       clearTimeout(window.currentTimeout);
       const id = novaCorrida.id;
       window.currentTimeout = setTimeout(() => {
@@ -276,7 +429,7 @@ export default function PainelMototaxista() {
     return () => {
       clearTimeout(window.currentTimeout);
     };
-  }, [novaCorrida, corridaAtiva, isOnline]);
+  }, [novaCorrida, corridaAtiva, isOnline, ofertaFoiAberta]);
 
   // Efeito de Áudio e Vibração em Loop
   useEffect(() => {
@@ -439,6 +592,11 @@ export default function PainelMototaxista() {
         if (isOnlineRef.current) {
           checkCorridasPendentes();
         }
+        if (gpsAllowedRef.current && !watchPositionRef.current) {
+          startGpsWatch();
+        }
+      } else {
+        stopGpsWatch();
       }
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -449,8 +607,28 @@ export default function PainelMototaxista() {
       supabase.removeChannel(driverUpdateSub);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       clearTimeout(window.currentTimeout);
+      stopGpsWatch();
     };
   }, [router]); // Removed isOnline and corridaAtiva to prevent recreating the channel
+
+  useEffect(() => {
+    if (!driver) return;
+    if (isOnline) {
+      if (!gpsAllowedRef.current) {
+        void requestGpsPermission();
+      } else if (!watchPositionRef.current) {
+        startGpsWatch();
+      }
+    } else {
+      stopGpsWatch();
+    }
+  }, [isOnline, driver]);
+
+  useEffect(() => {
+    return () => {
+      stopGpsWatch();
+    };
+  }, []);
 
   const checkCorridaAtiva = async (driverId: string) => {
     // Apenas corridas das últimas 12 horas para evitar testes antigos presos
@@ -757,6 +935,14 @@ export default function PainelMototaxista() {
             >
               Minha Mensalidade ➔
             </p>
+            {gpsWarning && (
+              <button
+                onClick={() => requestGpsPermission()}
+                className="text-[10px] mt-1 text-orange-400 font-bold underline underline-offset-2 hover:text-orange-300"
+              >
+                ⚠️ {gpsWarning}
+              </button>
+            )}
           </div>
         </div>
         
@@ -963,7 +1149,10 @@ export default function PainelMototaxista() {
                     />
                   </div>
                   <button 
-                    onClick={() => aceitarCorrida(novaCorrida.id)}
+                    onClick={() => {
+                      marcarOfertaComoAberta();
+                      aceitarCorrida(novaCorrida.id);
+                    }}
                     className="py-4 px-6 bg-primary text-dark font-black text-xl rounded-xl shadow-[0_0_30px_rgba(255,204,0,0.8)] flex items-center justify-center gap-2 whitespace-nowrap active:scale-95 transition-transform animate-pulse-fast"
                   >
                     <CheckCircle2 size={24} /> ENVIAR
@@ -975,14 +1164,20 @@ export default function PainelMototaxista() {
             <div className="flex flex-col gap-4 mt-auto pt-4">
               {novaCorrida.status_negociacao !== 'sugerido' && novaCorrida.tipo_corrida !== 'especial' && (
                 <button 
-                  onClick={() => aceitarCorrida(novaCorrida.id)}
+                  onClick={() => {
+                    marcarOfertaComoAberta();
+                    aceitarCorrida(novaCorrida.id);
+                  }}
                   className="w-full py-8 bg-primary text-dark font-black text-3xl rounded-2xl shadow-[0_0_40px_rgba(255,204,0,0.8)] flex items-center justify-center gap-3 animate-pulse-fast active:scale-95 transition-transform"
                 >
                   <CheckCircle2 size={32} /> ACEITAR
                 </button>
               )}
               <button 
-                onClick={() => recusarCorrida(novaCorrida.id)}
+                onClick={() => {
+                  marcarOfertaComoAberta();
+                  recusarCorrida(novaCorrida.id);
+                }}
                 className="w-full py-5 bg-red-100 text-red-600 font-bold text-xl rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-transform"
               >
                 <XCircle size={24} /> RECUSAR

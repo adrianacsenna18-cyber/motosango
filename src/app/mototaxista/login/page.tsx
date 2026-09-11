@@ -67,7 +67,30 @@ export default function DriverLogin() {
         return;
       }
 
-      localStorage.setItem("motosango_driver", JSON.stringify(driver));
+      const sessionResponse = await fetch("/api/mototaxista/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ telefone, nome: cleanNome }),
+      });
+
+      if (!sessionResponse.ok) {
+        const sessionData = await sessionResponse.json().catch(() => null);
+        alert(
+          sessionData?.error ||
+            "Erro ao iniciar sessão do mototaxista. Tente novamente.",
+        );
+        setLoading(false);
+        return;
+      }
+
+      const sessionData = await sessionResponse.json().catch(() => null);
+      const finalDriver =
+        sessionData?.driver && typeof sessionData.driver === "object"
+          ? sessionData.driver
+          : driver;
+
+      localStorage.setItem("motosango_driver", JSON.stringify(finalDriver));
       router.push("/mototaxista/painel");
     } catch (error) {
       console.error("Erro no login:", error);

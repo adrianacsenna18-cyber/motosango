@@ -2,7 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+
+import {
+  clearClienteLegacyStorage,
+  fetchClienteSession,
+  syncClienteLegacyStorage,
+} from "@/lib/cliente-session-client";
 
 export default function ClienteLogin() {
   const router = useRouter();
@@ -12,13 +17,25 @@ export default function ClienteLogin() {
   const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
-    // Verifica se já existe um usuário logado
-    const savedUser = localStorage.getItem("motosango_user");
-    if (savedUser) {
-      router.push("/cliente/solicitar");
-    } else {
-      setCheckingAuth(false);
-    }
+    const checkSession = async () => {
+      try {
+        const sessionUser = await fetchClienteSession();
+
+        if (sessionUser) {
+          syncClienteLegacyStorage(sessionUser);
+          router.push("/cliente/solicitar");
+          return;
+        }
+
+        clearClienteLegacyStorage();
+      } catch {
+        clearClienteLegacyStorage();
+      } finally {
+        setCheckingAuth(false);
+      }
+    };
+
+    checkSession();
   }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -38,33 +55,26 @@ export default function ClienteLogin() {
       return;
     }
 
-    // Formata para o padrão: +55 DD NNNNN-NNNN
-    const ddd = cleanTelefone.substring(0, 2);
-    const numero = cleanTelefone.substring(2);
-    const formattedTelefone = numero.length === 9 
-      ? `+55 ${ddd} ${numero.substring(0, 5)}-${numero.substring(5)}`
-      : `+55 ${ddd} ${numero.substring(0, 4)}-${numero.substring(4)}`;
-
     try {
-      // Busca se o cliente já existe (suporta formato antigo sem +55 e o formato novo)
-      const { data, error } = await supabase
-        .from("users")
-        .select("*")
-        .in("telefone", [formattedTelefone, cleanTelefone, telefone]);
+      const response = await fetch("/api/cliente/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nome,
+          telefone,
+        }),
+        credentials: "include",
+      });
 
-      if (!data || data.length === 0) {
-        // Se não existe, cadastra com o formato padronizado
-        const { data: newUserArray, error: insertError } = await supabase
-          .from("users")
-          .insert([{ nome, telefone: formattedTelefone }])
-          .select();
-          
-        if (insertError) throw insertError;
-        localStorage.setItem("motosango_user", JSON.stringify(newUserArray[0]));
-      } else {
-        // Se existe, apenas salva na sessão local
-        localStorage.setItem("motosango_user", JSON.stringify(data[0]));
+      const data = await response.json();
+
+      if (!response.ok || !data.success || !data.user) {
+        throw new Error(data.error || "Erro ao acessar. Tente novamente.");
       }
+
+      syncClienteLegacyStorage(data.user);
 
       router.push("/cliente/solicitar");
     } catch (error) {
