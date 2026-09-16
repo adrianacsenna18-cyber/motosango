@@ -41,7 +41,7 @@ export default function PerfilMototaxista() {
       }).catch(() => null);
 
       clearMotoLegacyStorage();
-      router.push("/");
+      router.replace("/app");
     }
   };
 

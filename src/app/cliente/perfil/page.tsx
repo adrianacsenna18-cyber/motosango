@@ -41,7 +41,7 @@ export default function PerfilCliente() {
       }).catch(() => null);
 
       clearClienteLegacyStorage();
-      router.push("/");
+      router.replace("/app");
     }
   };
 
