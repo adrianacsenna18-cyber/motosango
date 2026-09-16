@@ -10,6 +10,7 @@ import {
 } from "@/lib/cliente-session-client";
 
 import { ClienteBottomNav } from "@/components/layout/ClienteBottomNav";
+import ClientePwaInstallToast from "@/components/cliente/ClientePwaInstallToast";
 
 export default function SolicitarCorrida() {
   const router = useRouter();
@@ -473,6 +474,7 @@ export default function SolicitarCorrida() {
           </form>
         </div>
       </div>
+      <ClientePwaInstallToast pathname={pathname} />
       <ClienteBottomNav />
     </div>
   );
