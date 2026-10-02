@@ -1,19 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
-import { MapPin, Navigation, Phone, Copy, CheckCircle2 } from "lucide-react";
+import { MapPin, Navigation, Phone, Copy, CheckCircle2, Mail } from "lucide-react";
 import {
   clearClienteLegacyStorage,
   fetchClienteSession,
   syncClienteLegacyStorage,
 } from "@/lib/cliente-session-client";
+import { MercadoPagoPixBox, type MercadoPagoPixBoxData } from "@/components/cliente/MercadoPagoPixBox";
 
 export default function StatusCorrida({ params }: { params: { id: string } }) {
   const router = useRouter();
   const [corrida, setCorrida] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [mpPixEnabled, setMpPixEnabled] = useState(false);
+  const [mpPixData, setMpPixData] = useState<MercadoPagoPixBoxData | null>(null);
+  const mpPixCreateLock = useRef<boolean>(false);
+  const [cliente, setCliente] = useState<any>(null);
+  const [clienteEmailSaved, setClienteEmailSaved] = useState<string | null>(null);
+  const [emailInput, setEmailInput] = useState('');
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailSaving, setEmailSaving] = useState(false);
 
   useEffect(() => {
     const fetchCorrida = async () => {
@@ -26,6 +35,23 @@ export default function StatusCorrida({ params }: { params: { id: string } }) {
       }
 
       syncClienteLegacyStorage(sessionUser);
+      setCliente(sessionUser);
+
+      // Carrega o e-mail salvo do cliente (se existir)
+      try {
+        const { data: userRow, error: userErr } = await supabase
+          .from("users")
+          .select("email")
+          .eq("id", sessionUser.id)
+          .maybeSingle();
+        if (!userErr && userRow) {
+          const saved = typeof userRow.email === "string" && userRow.email.trim()
+            ? userRow.email.trim()
+            : null;
+          setClienteEmailSaved(saved);
+          if (saved) setEmailInput(saved);
+        }
+      } catch (_) { /* ignore */ }
 
       const { data, error } = await supabase
         .from("rides")
@@ -88,6 +114,116 @@ export default function StatusCorrida({ params }: { params: { id: string } }) {
     router.push("/cliente/solicitar");
   };
 
+  const fetchMpPixConfig = useCallback(async () => {
+    try {
+      const res = await fetch('/api/pix/config', { cache: 'no-store' });
+      if (res.ok) {
+        const json = await res.json() as { enabled?: boolean };
+        setMpPixEnabled(Boolean(json.enabled));
+        return Boolean(json.enabled);
+      }
+    } catch (_) {
+      setMpPixEnabled(false);
+    }
+    return false;
+  }, []);
+
+  const fetchMpPixStatus = useCallback(async () => {
+    try {
+      const url = `/api/pix/status?ride_id=${encodeURIComponent(params.id)}`;
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) return null;
+      const json = (await res.json()) as {
+        has_mp_payment?: boolean;
+        mp_payment?: MercadoPagoPixBoxData | null;
+      };
+      if (json.has_mp_payment && json.mp_payment) {
+        setMpPixData(json.mp_payment);
+        return json.mp_payment;
+      }
+      setMpPixData(null);
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }, [params.id]);
+
+  const tryCreateMpPix = useCallback(async (): Promise<MercadoPagoPixBoxData | null> => {
+    if (mpPixCreateLock.current) return null;
+
+    // Bloqueia criação do Pix automático se cliente ainda não salvou o email.
+    if (!clienteEmailSaved) return null;
+
+    try {
+      mpPixCreateLock.current = true;
+      const res = await fetch('/api/pix/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+        body: JSON.stringify({ ride_id: params.id }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Erro ao criar Pix Mercado Pago.' }));
+        console.warn('[mp-pix] create falhou:', err);
+        return null;
+      }
+      const json = (await res.json()) as {
+        mp_payment_id?: string | null;
+        mp_status?: string | null;
+        mp_external_reference?: string | null;
+        qr_code_base64?: string | null;
+        qr_code_text?: string | null;
+        pix_expires_at?: string | null;
+      };
+      const mapped: MercadoPagoPixBoxData = {
+        mp_payment_id: json.mp_payment_id || null,
+        mp_status: json.mp_status || null,
+        mp_external_reference: json.mp_external_reference || null,
+        qr_code_base64: json.qr_code_base64 || null,
+        qr_code_text: json.qr_code_text || null,
+        pix_expires_at_iso: json.pix_expires_at || null,
+        is_expired: false,
+      };
+      setMpPixData(mapped);
+      return mapped;
+    } catch (err) {
+      console.warn('[mp-pix] create exceção:', err);
+      return null;
+    } finally {
+      mpPixCreateLock.current = false;
+    }
+  }, [params.id, clienteEmailSaved]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      const enabled = await fetchMpPixConfig();
+      if (!enabled) return;
+      const statusPayment = await fetchMpPixStatus();
+      if (statusPayment) return;
+
+      if (!corrida) return;
+      if (corrida.status === 'cancelado' || corrida.status === 'concluido') return;
+      if (corrida.forma_pagamento !== 'pix') return;
+
+      const valor = typeof corrida.valor === 'number' && Number.isFinite(corrida.valor)
+        ? corrida.valor
+        : null;
+
+      if (valor && valor > 0) {
+        if (cancelled) return;
+        await tryCreateMpPix();
+      }
+    })().catch((_err) => {
+      /* silently */
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [corrida, fetchMpPixConfig, fetchMpPixStatus, tryCreateMpPix]);
+
   if (loading) return <div className="p-6 text-center mt-20">Carregando status...</div>;
   if (!corrida) return <div className="p-6 text-center mt-20">Corrida não encontrada.</div>;
 
@@ -118,6 +254,122 @@ export default function StatusCorrida({ params }: { params: { id: string } }) {
             Mototaxista ainda não cadastrou chave PIX
           </p>
         )}
+      </div>
+    );
+  };
+
+  const salvarEmailCliente = async (): Promise<boolean> => {
+    setEmailError(null);
+    const rawEmail = emailInput.trim();
+    const EMAIL_RE_LOCAL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!rawEmail) {
+      setEmailError('Informe seu e-mail para continuar.');
+      return false;
+    }
+    if (!EMAIL_RE_LOCAL.test(rawEmail)) {
+      setEmailError('Informe um e-mail válido.');
+      return false;
+    }
+    try {
+      setEmailSaving(true);
+      const res = await fetch('/api/cliente/email/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+        credentials: 'include',
+        body: JSON.stringify({ email: rawEmail }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: 'Erro ao salvar e-mail.' }));
+        setEmailError(body?.error || 'Não foi possível salvar o e-mail. Tente novamente.');
+        return false;
+      }
+      const normalized = rawEmail.toLowerCase();
+      setClienteEmailSaved(normalized);
+      setEmailInput(normalized);
+      return true;
+    } catch (err) {
+      console.warn('[email-save] erro:', err);
+      setEmailError('Erro de conexão. Tente novamente.');
+      return false;
+    } finally {
+      setEmailSaving(false);
+    }
+  };
+
+  const renderEmailPromptBox = () => {
+    if (!isPix || !mpPixEnabled) return null;
+    if (clienteEmailSaved) return null;
+
+    const continuarSalvarEmail = async () => {
+      const ok = await salvarEmailCliente();
+      if (!ok) return;
+
+      // Tenta buscar se já existe um Pix criado para a corrida
+      const existing = await fetchMpPixStatus();
+      if (existing) return;
+
+      // Caso valor já definido, tenta criar o Pix agora
+      if (!corrida) return;
+      if (corrida.status === 'cancelado' || corrida.status === 'concluido') return;
+      const valor = typeof corrida.valor === 'number' && Number.isFinite(corrida.valor)
+        ? corrida.valor
+        : null;
+      if (valor && valor > 0) {
+        await tryCreateMpPix();
+      }
+    };
+
+    return (
+      <div className="bg-white p-5 rounded-2xl mb-4 text-left border border-gray-200 shadow-sm">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
+            <Mail size={22} className="text-dark" />
+          </div>
+          <h3 className="text-lg font-black text-dark leading-tight">
+            Confirme seu e-mail
+          </h3>
+        </div>
+        <p className="text-base font-medium text-dark leading-relaxed mb-4">
+          Para realizar seu primeiro pagamento via Pix, vamos solicitar seu e-mail.
+          Você só precisará informar uma vez. Nos próximos pagamentos via Pix, seu
+          e-mail ficará salvo e não será solicitado novamente.
+        </p>
+        <div className="space-y-2 mb-3">
+          <label className="text-sm font-bold text-gray-700" htmlFor="cliente-email-pix">
+            E-mail
+          </label>
+          <input
+            id="cliente-email-pix"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            value={emailInput}
+            onChange={(e) => {
+              setEmailInput(e.target.value);
+              if (emailError) setEmailError(null);
+            }}
+            placeholder="seu@email.com"
+            className="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-dark text-base focus:outline-none focus:ring-2 focus:ring-primary/60 focus:border-primary transition-colors"
+            disabled={emailSaving}
+          />
+          {emailError ? (
+            <p className="text-sm text-red-600 font-medium">{emailError}</p>
+          ) : null}
+        </div>
+        <button
+          onClick={continuarSalvarEmail}
+          disabled={emailSaving}
+          className="w-full py-3 bg-primary text-dark font-bold rounded-lg flex items-center justify-center gap-2 hover:bg-yellow-400 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+        >
+          {emailSaving ? (
+            'SALVANDO...'
+          ) : (
+            <>
+              <CheckCircle2 size={20} /> CONTINUAR
+            </>
+          )}
+        </button>
       </div>
     );
   };
@@ -166,11 +418,16 @@ export default function StatusCorrida({ params }: { params: { id: string } }) {
                 </button>
                 <button 
                   onClick={async () => {
-                    await supabase.from("rides").update({
+                    const { error: updateErr } = await supabase.from("rides").update({
                       status_negociacao: 'aceito',
                       status: 'a_caminho',
                       valor: corrida.valor_sugerido
                     }).eq("id", corrida.id);
+                    if (!updateErr && isPix && mpPixEnabled && clienteEmailSaved) {
+                      tryCreateMpPix().catch(() => {
+                        /* silently — fallback manual continua ativo */
+                      });
+                    }
                   }}
                   className="flex-1 py-3 bg-primary text-dark font-bold rounded-xl shadow-md"
                 >
@@ -266,7 +523,15 @@ export default function StatusCorrida({ params }: { params: { id: string } }) {
             </div>
 
             {/* Caixa do PIX ou Dinheiro */}
-            {renderPixBox()}
+            {isPix && mpPixEnabled && !clienteEmailSaved ? (
+              renderEmailPromptBox()
+            ) : isPix && mpPixEnabled && clienteEmailSaved && mpPixData ? (
+              <div className="mb-4">
+                <MercadoPagoPixBox data={mpPixData} />
+              </div>
+            ) : isPix && !mpPixEnabled ? (
+              renderPixBox()
+            ) : null}
 
             {isDinheiro && corrida.status === 'concluido' && (
               <div className="bg-white p-4 rounded-2xl mb-4 text-center border border-gray-200 shadow-sm">
